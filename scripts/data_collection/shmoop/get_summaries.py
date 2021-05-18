@@ -1,0 +1,90 @@
+"""
+/*
+ * Copyright (c) 2021, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+ */
+"""
+
+from builtins import zip, str, range
+
+import pdb, os, csv, re, io, json
+import urllib.request, urllib.error, urllib.parse
+
+from bs4 import BeautifulSoup
+from tqdm import tqdm
+from shutil import rmtree
+from nltk.tokenize import word_tokenize, sent_tokenize
+
+# PARAMS
+SUMMARY_DIR = '../../raw_summaries/shmoop/summaries'
+MAIN_SITE = 'https://web.archive.org/web/20210225092515/https://www.shmoop.com/'
+
+# Summary list info
+summary_list_file = "literature_links.tsv"
+
+
+def wrap_data(name, summary, analysis, url):
+    return {
+        "name": name,
+        "summary": summary,
+        "analysis": analysis,
+        "url": url
+    }
+
+# Get contents of the summary file
+with open(summary_list_file, 'r') as tsvfile:
+    reader = csv.reader(tsvfile, delimiter='\t')
+    summary_infos = list(reader)
+
+# For each summary info
+error_files, error_titles = [], []
+for k, (title, url) in enumerate(summary_infos):
+    print('\n>>> {}. {} <<<'.format(k, title))
+
+    # Create a directory for the work if needed
+    specific_summary_dir = os.path.join(SUMMARY_DIR, title)
+    if not os.path.exists(specific_summary_dir):
+        os.makedirs(specific_summary_dir)
+    else:
+        print("Found existing directory, skipping.")
+        continue
+
+    # Parse page
+    html_address = urllib.parse.urljoin(url + "/", "summary")
+    soup = BeautifulSoup(urllib.request.urlopen(html_address), "html.parser")
+
+    # Parse general summary
+    overview_section = soup.find("div", {"data-class": "SHPlotOverviewSection"})
+    overview_section = soup.find("div", {"class": "content-wrapper"})
+    # import pdb; pdb.set_trace()
+    overview_summary_paragraphs = [paragraph.text.strip() for paragraph in overview_section.findAll("p")]
+    overview_summary = "<PARAGRAPH>".join(overview_summary_paragraphs)
+
+    overview_data = wrap_data("Overview", overview_summary, None, str(html_address))
+    output_fname = os.path.join(specific_summary_dir, 'overview.txt')
+    with open(output_fname, 'w', encoding="utf-8") as f:
+        f.write(json.dumps(overview_data))
+
+    # Parse sections summary 
+    summary_sections = [(link.text, urllib.parse.urljoin(MAIN_SITE, link.get("href"))) for link in soup.find("div", {"class": "nav-menu"}).findAll("a", href=True) if "summary" in link.get("href")]
+    # Go over each section
+    for index, (section_title, section_url) in enumerate(summary_sections):
+        output_fname = os.path.join(specific_summary_dir, "section_%d.txt" % index)
+        if os.path.exists(output_fname):
+            print('Found section: {}'.format(index))
+            continue
+
+        print('Parsing section: {}'.format(index))
+        # Parse section to get bullet point text
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(section_url), "html.parser")
+            section_points = soup.find("div", {"data-element": "collapse_target"})
+            section_text = "<PARAGRAPH>".join([bullet.text.strip() for bullet in section_points.findAll("li")])
+            section_data = wrap_data(section_title, section_text, None, str(section_url))
+            # Save in a file
+            with open(output_fname, 'w', encoding="utf-8") as f:
+                f.write(json.dumps(section_data))
+        except:
+            import pdb; pdb.set_trace()
