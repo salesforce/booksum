@@ -9,7 +9,7 @@ Our dataset covers source documents from the literature domain, such as novels, 
 The domain and structure of our dataset poses a unique set of challenges for summarization systems, which include: processing very long documents, non-trivial causal and temporal dependencies, and rich discourse structures.
 To facilitate future work, we trained and evaluated multiple extractive and abstractive summarization models as baselines for our dataset.
 
-Paper link: https://arxiv.org/abs/XXXXXXX
+Paper link: https://arxiv.org/abs/2105.08209
 
 <p align="center"><img src="misc/book_sumv4.png"></p>
  
@@ -29,11 +29,13 @@ Initial commit
 
 ## Citation
 ```
-@article{XXXXXX:2021,
-  author    = {},
-  title     = {BOOKSum: A Collection of Datasets for Long-form Narrative Summarization},
-  journal   = {arXiv preprint arXiv:XXXXXXX},
-  year      = {2021},
+@article{kryscinski2021booksum,
+      title={BookSum: A Collection of Datasets for Long-form Narrative Summarization}, 
+      author={Wojciech Kry{\'s}ci{\'n}ski and Nazneen Rajani and Divyansh Agarwal and Caiming Xiong and Dragomir Radev},
+      year={2021},
+      eprint={2105.08209},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
 }
 ```
 
