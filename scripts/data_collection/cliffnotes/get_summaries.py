@@ -26,6 +26,7 @@ MAIN_SITE = 'https://web.archive.org/web/20210312193150/https://www.cliffsnotes.
 # Summary list info
 summary_list_file = "literature_links.tsv"
 
+errors_file = open("section_errors.txt","w")
 
 def wrap_data(name, summary, analysis, url):
     return {
@@ -38,10 +39,19 @@ def wrap_data(name, summary, analysis, url):
 
 def scrape_section_continuation(parent_soup, section_header):
     section_data = parent_soup.find("article", {"class": "copy"})
+
+    # For some links, the html structure is different
+    if section_data == None:
+        section_data = parent_soup.find("div", {"class": "contentArea"})
+        link = parent_soup.findAll("a", {"class": "cf-next icon-Next_Arrow"}, href=True)[-1]
+        next_link_title = link.findAll("p")[-1].text.strip()
+    else:
+        link = parent_soup.findAll("a", {"class": "nav-bttn-filled"}, href=True)[-1]
+        next_link_title = link.findAll("span")[-1].text.strip()
+
     section_paragraphs = [paragraph.text.strip() for paragraph in section_data.findAll("p", recursive=False)]
     
-    link = parent_soup.findAll("a", {"class": "nav-bttn-filled"}, href=True)[-1]
-    if not section_header == link.findAll("span")[-1].text.strip():
+    if not section_header == next_link_title:
         return section_paragraphs
     else:
         soup = BeautifulSoup(urllib.request.urlopen(urllib.parse.urljoin(MAIN_SITE, link.get("href"))), "html.parser")
@@ -53,7 +63,6 @@ with open(summary_list_file, 'r') as csvfile:
     summary_infos = list(reader)
 
 # For each summary info
-error_files, error_titles = [], []
 for k, (title, page_url) in enumerate(summary_infos):
     print('\n>>> {}. {} <<<'.format(k, title))
 
@@ -89,10 +98,17 @@ for k, (title, page_url) in enumerate(summary_infos):
 
             
     for index, section in enumerate(section_links):
-        soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
-        section_header = soup.title.string.strip()
-        #section_paragraphs = filter(None, [paragraph.text.strip() for paragraph in section_data.findAll("p", recursive=False)])
-        section_paragraphs = list(filter(None, scrape_section_continuation(soup, section_header)))
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
+            section_header = soup.title.string.strip()
+
+            section_paragraphs = list(filter(None, scrape_section_continuation(soup, section_header)))
+
+        except Exception as e:
+
+            print (section, e)
+            errors_file.write(section + "\t" + str(e) + "\n")
+
         section_text = "<PARAGRAPH>".join(section_paragraphs).replace("Continued on next page...", "")
 
         # clean up and parse
