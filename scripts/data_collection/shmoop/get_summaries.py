@@ -24,6 +24,7 @@ MAIN_SITE = 'https://web.archive.org/web/20210225092515/https://www.shmoop.com/'
 # Summary list info
 summary_list_file = "literature_links.tsv"
 
+errors_file = open("section_errors.txt","w")
 
 def wrap_data(name, summary, analysis, url):
     return {
@@ -39,7 +40,6 @@ with open(summary_list_file, 'r') as tsvfile:
     summary_infos = list(reader)
 
 # For each summary info
-error_files, error_titles = [], []
 for k, (title, url) in enumerate(summary_infos):
     print('\n>>> {}. {} <<<'.format(k, title))
 
@@ -53,12 +53,19 @@ for k, (title, url) in enumerate(summary_infos):
 
     # Parse page
     html_address = urllib.parse.urljoin(url + "/", "summary")
-    soup = BeautifulSoup(urllib.request.urlopen(html_address), "html.parser")
+
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(html_address), "html.parser")
+    except Exception as e:
+        print (html_address, e)
+        errors_file.write(html_address + "\t" + str(e))
+        errors_file.write("\n")
+        continue
+
 
     # Parse general summary
     overview_section = soup.find("div", {"data-class": "SHPlotOverviewSection"})
     overview_section = soup.find("div", {"class": "content-wrapper"})
-    # import pdb; pdb.set_trace()
     overview_summary_paragraphs = [paragraph.text.strip() for paragraph in overview_section.findAll("p")]
     overview_summary = "<PARAGRAPH>".join(overview_summary_paragraphs)
 
@@ -72,11 +79,9 @@ for k, (title, url) in enumerate(summary_infos):
     # Go over each section
     for index, (section_title, section_url) in enumerate(summary_sections):
         output_fname = os.path.join(specific_summary_dir, "section_%d.txt" % index)
-        if os.path.exists(output_fname):
-            print('Found section: {}'.format(index))
-            continue
 
-        print('Parsing section: {}'.format(index))
+        print(section_title, section_url)
+        
         # Parse section to get bullet point text
         try:
             soup = BeautifulSoup(urllib.request.urlopen(section_url), "html.parser")
@@ -86,5 +91,8 @@ for k, (title, url) in enumerate(summary_infos):
             # Save in a file
             with open(output_fname, 'w', encoding="utf-8") as f:
                 f.write(json.dumps(section_data))
-        except:
-            import pdb; pdb.set_trace()
+        except Exception as e:
+            print (section_url, e)
+            errors_file.write(section_url + "\t" + str(e))
+            errors_file.write("\n")
+            continue

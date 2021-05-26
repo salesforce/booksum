@@ -7,6 +7,10 @@
  */
 """
 
+
+"""
+Note: Summaries collected through bookwolf require significant manual cleanup owing to the way the HTML is written
+"""
 from builtins import zip, str, range
 
 import pdb, os, csv, re, io, json
@@ -37,6 +41,9 @@ with open(summary_list_file, 'r') as tsvfile:
 def get_overview_paragraphs(overview_links, specific_summary_dir):
 
     for index, (overview, name) in enumerate(overview_links):
+
+        print (name, overview)
+
         try:
             soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
             overview_data = soup.find("td", {"class": "TextObject"})
@@ -53,8 +60,8 @@ def get_overview_paragraphs(overview_links, specific_summary_dir):
                 overview_paragraphs = [unidecode(paragraph.text.strip()) for paragraph in overview_data.findAll("p", recursive=False)[1:]]
 
             except Exception as e:
-                print("No book summary for: ", e)
-                f_errors.write(str(index) + "\t" + overview + "\t" + name + "\t" + specific_summary_dir + "\n")
+                print("No book summary for: ", overview, e)
+                f_errors.write(overview + "\t" + name + "\t" + specific_summary_dir + "\n")
                 continue
 
             overview_text = "\n".join(overview_paragraphs)
@@ -73,7 +80,7 @@ def get_section_paragraphs(section_links, specific_summary_dir):
         
         try:
             
-            print ("Section: ", section)
+            print (name, section)
             soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
             section_data = soup.find("td", {"class": "TextObject"})
         except Exception as e:
@@ -85,8 +92,8 @@ def get_section_paragraphs(section_links, specific_summary_dir):
                 soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
                 section_data = soup.find("td", {"class": "TextObject"})
             except Exception as e:
-                print ("Chapter level summary not found: ", e)
-                f_errors.write(str(index) + "\t" + section + "\t" + name + "\t" + specific_summary_dir + "\n")
+                print ("Chapter level summary not found for: ", section, e)
+                f_errors.write(section + "\t" + name + "\t" + specific_summary_dir + "\n")
                 continue
 
 
@@ -113,8 +120,6 @@ def get_section_paragraphs(section_links, specific_summary_dir):
             else:
                 section_analysis.append(unidecode(paragraph.text.strip()))
                 
-            # print ("line: ", paragraph.text.strip())
-
         section_text = "\n".join(section_paragraphs)
         section_interpretation = "\n".join(section_analysis)
 
@@ -129,7 +134,6 @@ def get_section_paragraphs(section_links, specific_summary_dir):
         
 
 # For each summary info
-error_files, error_titles = [], []
 for k, (title, page_url) in enumerate(summary_infos):
 
     print('\n>>> {}. {} <<<'.format(k, title))
@@ -140,9 +144,17 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory.")
+        continue
 
     # Parse page
-    soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    print ("page_url: ", page_url)
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    except Exception as e:
+        print (page_url, e)
+        f_errors.write(str(k) + "\t" + title + "\t" + page_url + "\t" + specific_summary_dir + "\n")
+        continue
+
 
     # Parse general summary
     navigation_links = soup.find("table", {"id": "Table56"})
@@ -151,16 +163,16 @@ for k, (title, page_url) in enumerate(summary_infos):
     overview_links = [(urllib.parse.urljoin(MAIN_SITE, link.get("href")), link.text) for link in navigation_links.findAll("a")\
      if ("part" not in link.text.lower() and ("context" in link.get("href") or "summary" in link.get("href") or "synopsis" in link.get("href") ))]
 
-    #Filter out some of the links that are obviously not chapter summary links
-    #Since this source only has a handful of books, it was easy to hard code which links to fetch/not fetch
+    # Filter out some of the links that are obviously not chapter summary links
+    # Since this source only has a handful of books, it was easy to hard code which links to fetch summaries from
     section_links = [(urllib.parse.urljoin(MAIN_SITE, link.get("href")), link.text) for link in navigation_links.findAll("a") \
-    if  (("interpretation" not in link.text.lower() and "comment" not in link.text.lower() and "author" not in link.text.lower()\
+    if  ("interpretation" not in link.text.lower() and "comment" not in link.text.lower() and "author" not in link.text.lower()\
     and "character" not in link.text.lower() and "questions" not in link.text.lower() and "life at the time" not in link.text.lower()\
     and "theme" not in link.text.lower() and "foreword" not in link.text.lower() and "background" not in link.text.lower()\
     and "symbolism" not in link.text.lower() and "introduction" not in link.text.lower() and "characterization" not in link.text.lower()\
-    and "setting" not in link.text.lower() and "family life" not in link.text.lower() and "comment" not in link.text.lower() ) 
+    and "setting" not in link.text.lower() and "family life" not in link.text.lower() and "comment" not in link.text.lower() ) ]
     
-    print ("overview_links: ", overview_links)
+    print ("overview_link: ", overview_links)
     print ("section_links: ", section_links)
 
     if len(overview_links) != 0:

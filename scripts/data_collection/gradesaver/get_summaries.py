@@ -24,13 +24,14 @@ MAIN_SITE = 'https://web.archive.org/web/20210226083212/https://www.gradesaver.c
 # Summary list info
 summary_list_file = "literature_links.tsv"
 
+errors_file = open("section_errors.txt","w")
+
 # Get contents of the summary file
 with open(summary_list_file, 'r') as tsvfile:
     reader = csv.reader(tsvfile, delimiter='\t')
     summary_infos = list(reader)
 
 # For each summary info
-error_files, error_titles = [], []
 for k, (title, page_url) in enumerate(summary_infos):
     print('\n>>> {}. {} <<<'.format(k, title))
 
@@ -40,21 +41,28 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory, skipping.")
+        continue
 
     # Parse page
-    soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    except Exception as e:
+        print (page_url, e)
+        errors_file.write(page_url + "\t" + str(e))
+        continue
+
 
     # # Parse general summary
     navigation_links = soup.find("ul", {"class": "navSection__list js--collapsible"})
     overview_links = [(urllib.parse.urljoin(MAIN_SITE, link.find("a").get("href")), link.text.strip()) for link in navigation_links.findAll("li") if link.text.strip() == title + " Summary"]
-    print (overview_links)
+    # print (overview_links)
 
     if len(overview_links) == 0:
         print ("No overview summaries found")
     else:
         for index, (overview, name) in enumerate(overview_links):
             try:
-                print (overview)
+                print (name, overview)
                 soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
                 overview_data = soup.find("article", {"class": "section__article"})
 
@@ -101,11 +109,11 @@ for k, (title, page_url) in enumerate(summary_infos):
         print ("No section summaries found")
     else:
         section_links = [(urllib.parse.urljoin(MAIN_SITE,link.find("a").get("href")), link.text.strip()) for link in section_links[0]]
-        print (section_links)
+        # print (section_links)
 
         for index, (section, name) in enumerate(section_links):
             try:
-                print (section)
+                print (name, section)
                 soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
                 section_data = soup.find("article", {"class": "section__article"})
 

@@ -19,11 +19,19 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 MAIN_SITE = 'https://web.archive.org/web/20210223175142/https://www.sparknotes.com/'
 SEED_URL = 'https://web.archive.org/web/20210223175142/https://www.sparknotes.com/lit'
 
+errors_file = open("link_errors.txt","w")
+
 def scrape_index_pages(seed_page):
 # For each summary info
     scraped_links = []
 
-    soup = BeautifulSoup(urllib.request.urlopen(seed_page), "html.parser")
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(seed_page), "html.parser")
+    except Exception as e:
+        print ("Skipping: ", seed_page)
+        errors_file.write(seed_page + "\t" + str(e) + "\n")
+        continue
+
     items = soup.findAll("li", {"class": "hub-AZ-list__card hub-AZ-list__card--byTitle"})
     print("Found %d items." % len(items))
 

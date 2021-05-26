@@ -18,7 +18,7 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 # PARAMS
 MAIN_SITE = 'https://web.archive.org/web/20210225014436/https://www.novelguide.com/'
 
-alphabet_list = string.ascii_lowercase
+alphabet_list = string.ascii_lowercase + '1'
 
 SEED_URL = 'https://web.archive.org/web/20210225014436/https://www.novelguide.com/title/'
 
@@ -28,7 +28,7 @@ def scrape_index_pages(seed_page):
     scraped_links = []
 
     for char in alphabet_list:
-        books_page = seed_page + '1'
+        books_page = seed_page + char
 
         page_no = 0
 
@@ -60,13 +60,11 @@ def scrape_index_pages(seed_page):
 
             print ("No books found with title: ", char)
             
-        break
-
     return scraped_links
 
 # generate literature links
 scraped_data = scrape_index_pages(SEED_URL)
 
-with open("literature_links.tsv", "a") as fd:
+with open("literature_links.tsv", "w") as fd:
     for data in scraped_data:
         fd.write("%s\t%s\n" % (data["title"], data["url"]))

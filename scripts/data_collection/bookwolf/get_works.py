@@ -17,7 +17,7 @@ from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
 
 # PARAMS
-MAIN_SITE = 'https://web.archive.org/web/20210120012015/http://www.bookwolf.com/'
+MAIN_SITE = 'https://web.archive.org/'
 SEED_URL = 'https://web.archive.org/web/20210120012015/http://www.bookwolf.com/Welcome_to_Bookwolf1/welcome_to_bookwolf1.html'
 
 def scrape_index_pages(seed_page):
@@ -33,12 +33,12 @@ def scrape_index_pages(seed_page):
     # # Go over each section
     for index, item in enumerate(books_table):
         # Parse section to get bullet point text
-        print (item)
         item_title = item.find("a").text
-        item_url = item.find("a").get("href")[3:]
+        item_url = item.find("a").get("href")
 
+        print (index)
         print ("item_title: ", item_title)
-        print ("item_url: ", item_url)
+        print ("item_url: ", item_url, "\n")
 
         scraped_links.append({
             "title": item_title.strip().replace(",",""),

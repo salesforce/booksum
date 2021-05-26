@@ -22,6 +22,7 @@ SUMMARY_DIR = '../../raw_summaries/sparknotes/summaries'
 # Summary list info
 summary_list_file = "literature_links.tsv"
 
+f_errors = open("section_errors.txt","w")
 
 def wrap_data(name, summary, analysis, url):
     return {
@@ -37,7 +38,6 @@ with open(summary_list_file, 'r') as tsvfile:
     summary_infos = list(reader)
 
 # For each summary info
-error_files, error_titles = [], []
 for k, (title, page_url) in enumerate(summary_infos):
     print('\n>>> {}. {} <<<'.format(k, title))
 
@@ -51,7 +51,12 @@ for k, (title, page_url) in enumerate(summary_infos):
 
     # Parse page
     overview_url = urllib.parse.urljoin(page_url, "summary")
-    soup = BeautifulSoup(urllib.request.urlopen(overview_url), "html.parser")
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(overview_url), "html.parser")
+    except Exception as e:
+        print (overview_url, e)
+        f_errors.write(title + "\t" + overview_url + "\t" + str(e) + "\n")
+        continue
 
     # Parse general summary
     overview_data = soup.find("div", {"id": "plotoverview"})
@@ -65,7 +70,15 @@ for k, (title, page_url) in enumerate(summary_infos):
             f.write(json.dumps(overview_data))
 
     # Parse sections summary 
-    soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    print ("page_url: ", page_url)
+
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    except Exception as e:
+        print (page_url, e)
+        f_errors.write(title + "\t" + page_url + "\t" + str(e) + "\n")
+        continue
+
     summary_section = soup.find("span", {"id": "Summary"}).find_parent("div")
     summary_links = summary_section.findAll("a")
     summary_links = [link.get("href") for link in summary_links if "section" in link.get("href")]
@@ -73,25 +86,45 @@ for k, (title, page_url) in enumerate(summary_infos):
     for index, section in enumerate(summary_links):
         print('Parsing section: {}'.format(index))
         output_fname = os.path.join(specific_summary_dir, "section_%d.txt" % index)
-        if os.path.exists(output_fname):
-             print('Found section: {}'.format(index))
-             continue
 
         section_url = urllib.parse.urljoin(page_url, section)
-        soup = BeautifulSoup(urllib.request.urlopen(section_url), "html.parser")
+        # print ("section_url: ", section_url)
+
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(section_url), "html.parser")
+        except Exception as e:
+            print (section_url, e)
+            f_errors.write(str(index) + "\t" + section_url + "\t" + str(e) + "\n")
+            continue
+
         subsection_links = soup.find("div", {"class": "interior-sticky-nav"})
         num_subsections = max(1, len(subsection_links.findAll("a") if subsection_links else []))
         subsection_links = ["page/%d/" % page_ix for page_ix in range(1, num_subsections+1)]
+        
         section_header = " ".join([x.strip() for x in soup.title.string.replace(" | SparkNotes", "").split(":")[1:]])
 
-        print(section_url)
-        print(subsection_links)
         section_paragraphs = []
+
         for subsection_link in subsection_links:
             subsection_url = urllib.parse.urljoin(section_url, subsection_link)
-            soup = BeautifulSoup(urllib.request.urlopen(subsection_url), "html.parser")
+            print (section_header, subsection_url)
+
+            try:
+                soup = BeautifulSoup(urllib.request.urlopen(subsection_url), "html.parser")
+            except Exception as e:
+                print (subsection_url, e)
+                f_errors.write(str(index) + "\t" + section_header + "\t" + section_url + "\t" + subsection_url + "\t" + str(e) + "\n")
+                continue
+
             subsection_data = soup.find("div", {"id": "section"})
+            # print ("subsection_data: ", subsection_data)
+
+            if subsection_data == None:
+                f_errors.write(str(index) + "\t" + section_header + "\t" + section_url + "\t" + subsection_url + "\t" + "No Data" + "\n")
+                continue
+
             section_paragraphs.append(subsection_data.text.strip().replace("\n", " "))
+
         section_text = "<PARAGRAPH>".join(section_paragraphs)
 
         if "Summary:" in section_text and "Analysis:" in section_text:

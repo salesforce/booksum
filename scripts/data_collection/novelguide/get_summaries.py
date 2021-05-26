@@ -25,7 +25,7 @@ that script should recrape the links it missed")
 ARGS = PARSER.parse_args()
 
 # PARAMS
-SUMMARY_DIR = '../../raw_summaries/gradesaver/summaries'
+SUMMARY_DIR = '../../raw_summaries/novelguide/summaries'
 MAIN_SITE = 'https://web.archive.org/web/20210225014436/https://www.novelguide.com/'
 
 def hasNumbers(inputString):
@@ -36,6 +36,9 @@ def get_section_level_data(section_links):
     http_errors = []
 
     for index, (section, name), specific_summary_dir in section_links:
+        
+        print (name, section)
+        
         try:
             soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
             section_data = soup.find("div", {"class": "content clear-block"})
@@ -127,9 +130,11 @@ with open(summary_list_file, 'r') as tsvfile:
     summary_infos = list(reader)
 
 
-#Create the errors file every time when starting to scrape the summaries
+# Create the errors file every time when starting to scrape the summaries
+# This file can be used to try and rescrape the links that resulted in an error
 f_errors = open("section_errors.txt","w")
-print ("Errors file created")
+
+f_book_errors = open("book_errors.txt","w")
 
 # For each summary info
 for k, (title, page_url) in enumerate(summary_infos):
@@ -144,6 +149,7 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory.")
+        continue
 
     # Parse page
     try:
@@ -154,15 +160,21 @@ for k, (title, page_url) in enumerate(summary_infos):
         try:
             soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
         except urllib.error.HTTPError:
-            #Page not accessible at the moment
-            with open("book_not_found.txt","a") as f:
-                f.write(k, title, page_url)
-                f.write("\n")
+            print ("Page not accessible")
+            f_book_errors.write(str(k) + "\t" + title + "\t" + page_url)
+            f_book_errors.write("\n")
             continue
 
     # # Parse general summary
     navigation_links = soup.find("div", {"id": "block-booknavigation-3"})
-    # print (navigation_links)
+
+    #  Some links are just empty webpages
+    if navigation_links == None:
+        print ("Page not accessible")
+        f_book_errors.write(str(k) + "\t" + title + "\t" + page_url)
+        f_book_errors.write("\n")
+        continue
+
     section_links = [(urllib.parse.urljoin(MAIN_SITE, link.find("a").get("href")), link.text.strip()) for link in navigation_links.findAll("li")\
      if 'chapter' in link.text.strip().lower() or 'summary' in link.text.strip().lower() or 'section' in link.text.strip().lower() or 'stave' in link.text.strip().lower() \
      or 'chp' in link.text.strip().lower() or 'scene' in link.text.strip().lower() or 'act ' in link.text.strip().lower() \
@@ -176,7 +188,7 @@ for k, (title, page_url) in enumerate(summary_infos):
     for index, (section, name) in enumerate(section_links):
         section_links_with_index.append((index,(section, name), specific_summary_dir))
 
-    print (section_links_with_index, "\n")
+    # print (section_links_with_index, "\n")
 
     
     if len(section_links_with_index) == 0:

@@ -40,7 +40,14 @@ def unify_title(title):
     return title_clean
 
 def get_overview_paragraphs(overview):
-    soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
+
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
+    except Exception as e:
+        print (overview, e)
+        f_errors.write(overview + "\t" + str(e))
+        return []
+
     overview_paragraphs = []
     flag = 0
 
@@ -65,16 +72,15 @@ def get_section_paragraphs(section, section_titles, section_title_orig, specific
     try:
         soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
     except Exception as e:
-        print (e)
-        with open("section_errors.txt","a") as f:
-            f.write(str(index+1) + "\t" + section + "\t" + str(section_titles) + "\t" + section_title_orig + "\t" + specific_summary_dir + "\n")
+        print (section_title_orig, section, e)
+        f_errors.write(str(index+1) + "\t" + section + "\t" + str(section_titles) + "\t" + section_title_orig + "\t" + specific_summary_dir + "\n")
         
         return []
     section_paragraphs = []
     flag = 0
     found = False
 
-    # True if a structured page exists like -  http://thebestnotes.com/booknotes/Invisible_Man_Wells/The_Invisible_Man_Study_Guide14.html
+    # True if a structured page exists like -  https://web.archive.org/web/20210111015641/http://thebestnotes.com/booknotes/Invisible_Man_Wells/The_Invisible_Man_Study_Guide14.html
     structured_page = 0
 
     if soup.findAll("div", {"class": "large-12 columns"}) != []:
@@ -143,7 +149,7 @@ def get_section_paragraphs(section, section_titles, section_title_orig, specific
 
 def save_section_para(section_paragraphs, section_titles, section_title_orig, section, specific_summary_dir, index):
 
-    print ("section titles: ", section_titles[0])
+    print (section_titles[0], section)
 
     section_text = "<PARAGRAPH>".join(section_paragraphs)
 
@@ -159,7 +165,7 @@ def save_section_para(section_paragraphs, section_titles, section_title_orig, se
 
 # For each summary info
 for k, (title, page_url) in enumerate(summary_infos):
-    print('\n>>> {}. {} <<<'.format(k, page_url))
+    print('\n>>> {}. {} - {} <<<'.format(k, title, page_url))
 
 
     # Create a directory for the work if needed
@@ -212,7 +218,6 @@ for k, (title, page_url) in enumerate(summary_infos):
             section_titles = [section_title_orig]
 
             # To handle cases where the og page says Chapter 1 - X, but the summary page just says X
-            # http://thebestnotes.com/booknotes/Hope_In_The_Unseen_Suskind/Hope_In_The_Unseen_Study_Guide10.html
             # Add the different kind of section titles we can have into a list
             if ('-' in section_title_orig):
                 section_titles = section_titles + section_title_orig.strip().split('-')

@@ -16,14 +16,16 @@ from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
 
 
-# All book summaries from barronsbooknotes.com redirect to pinkmonkey.com
+# Book summaries from barronsbooknotes redirect to pinkmonkey
 
 # PARAMS
 MAIN_SITE = 'https://web.archive.org/web/20180820042551/http://barronsbooknotes.com/'
 
-alphabet_list = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'z']
+alphabet_list = string.ascii_lowercase
 
 SEED_URL = 'https://web.archive.org/web/20180820042551/http://barronsbooknotes.com/'
+
+errors_file = open("link_errors.txt","w")
 
 def scrape_index_pages(seed_page):
 # For each summary info
@@ -34,7 +36,13 @@ def scrape_index_pages(seed_page):
     for char in alphabet_list:
         books_page = seed_page + char + ".html"
 
-        soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+        except Exception as e:
+            print ("Skipping: ", books_page)
+            errors_file.write(books_page + "\t" + str(e) + "\n")
+            continue
+
         items = soup.findAll("div", {"align": "left"})
         books = items[0].findAll("a")
 
@@ -70,6 +78,6 @@ def scrape_index_pages(seed_page):
 # generate literature links
 scraped_data = scrape_index_pages(SEED_URL)
 
-with open("literature_links_new.tsv", "w") as fd:
+with open("literature_links.tsv", "w") as fd:
     for data in scraped_data:
         fd.write("%s\t%s\n" % (data["title"], data["url"]))

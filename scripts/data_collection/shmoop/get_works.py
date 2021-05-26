@@ -18,6 +18,7 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 # PARAMS
 MAIN_SITE = 'https://web.archive.org/web/20210225092515/https://www.shmoop.com/study-guides'
 
+errors_file = open("link_errors.txt","w")
 
 def generate_page_links(base_url, category_name, max_pages):
     return [os.path.join(base_url, category_name, "index?p=%d" % page_id) for page_id in range(1, max_pages+1)]
@@ -31,7 +32,13 @@ def scrape_index_pages(links):
     for k, page_url in enumerate(links):
         print('>>> {}. {} <<<'.format(k, page_url))
 
-        soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+        except Exception as e:
+            print ("Skipping: ", page_url)
+            errors_file.write(page_url + "\t" + str(e) + "\n")
+            continue
+
         items = soup.findAll("div", {"class" : "item"})
         print("Found %d items." % len(items))
 

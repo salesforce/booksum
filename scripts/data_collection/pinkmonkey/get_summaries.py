@@ -62,10 +62,10 @@ def get_overview_paragraphs(overview, specific_summary_dir):
         try:
             soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
         except Exception as e:
-            print ("Chapter not found: ", e, overview)
+            print ("Overview not found: ", e, overview)
 
             with open("section_errors.txt","a") as f:
-                f.write(str(index) + "\t" + overview + "\t" + "Overview" + "\t" + specific_summary_dir + "\n")
+                f.write(overview + "\t" + "Overview" + "\t" + specific_summary_dir + "\n")
 
             return overview_paragraphs
 
@@ -75,7 +75,11 @@ def get_overview_paragraphs(overview, specific_summary_dir):
     paragraphs = soup.findAll(["p","h3"])
 
     iframe_text = "Your browser does not support the IFRAME tag."
-    overview_text = paragraphs[3].text.strip().replace(iframe_text, "").replace("\r\n"," ").replace("\n"," ")
+
+    for ix, paragraph in enumerate(paragraphs):
+        overview_text = paragraph.text.strip().replace(iframe_text, "").replace("\r\n"," ").replace("\n"," ")
+        if re.match(pat, overview_text, re.IGNORECASE):
+            break
 
     if re.match(pat, overview_text, re.IGNORECASE):
         to_replace = re.match(pat, overview_text, re.IGNORECASE).group(1)
@@ -83,8 +87,6 @@ def get_overview_paragraphs(overview, specific_summary_dir):
         overview_text = overview_text.replace(to_replace, "")
 
     overview_text = remove_toc(overview_text)
-    overview_text = remove_toc(overview_text)
-
     overview_text = unidecode(overview_text)
 
     overview_text = ". ".join([line.strip().rstrip() for line in overview_text.split('. ')])
@@ -107,7 +109,6 @@ def save_section_para(section_text, section_title, section_link, specific_summar
         json.dump(section_dict, fp)
 
 def get_section_paragraphs(page_url, specific_summary_dir):
-    print ("get_section_paragraphs called")
     soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
     section_paragraphs = []
     all_links = []
@@ -120,7 +121,7 @@ def get_section_paragraphs(page_url, specific_summary_dir):
 
     overview_exists = 0
     for link in all_links:
-        # print (link.text.strip(), link.get("href"))
+
         link_text_not_lower = link.text.strip().replace("\r\n"," ").replace("\n"," ")
         link_text_lower = link.text.strip().lower().replace("\r\n"," ").replace("\n"," ")
         if "summaries" in link_text_lower or 'synopsis' in link_text_lower or 'plot' in link_text_lower or chapter_section_check(link_text_lower, link_text_not_lower):
@@ -131,7 +132,7 @@ def get_section_paragraphs(page_url, specific_summary_dir):
             if 'synopsis' in link_text_lower or 'plot' in link_text_lower:
                 overview_exists = 1
 
-    print (section_links)
+    # print (section_links)
 
     overview_found = 0
     index = -1
@@ -147,13 +148,11 @@ def get_section_paragraphs(page_url, specific_summary_dir):
 
             overview = link
             overview_title = link_text
-            print ("overview: ",overview)
-            print ("overview_title: ",overview_title)
-
+            print (overview_title, overview)
             
             overview_text = get_overview_paragraphs(overview, specific_summary_dir)
 
-            print ("overview_text: ", overview_text)
+            # print ("overview_text: ", overview_text)
             # overview_text = "<PARAGRAPH>".join(overview_paragraphs)
 
             overview_dict = {}
@@ -173,7 +172,7 @@ def get_section_paragraphs(page_url, specific_summary_dir):
 
             # chapter_url = os.path.join(one_level_up_url, link.get("href"))
             chapter_url = link
-            print("link_text: ", link_text, " chapter_url: ", chapter_url)
+            print(link_text, chapter_url)
 
             index += 1
             
@@ -195,8 +194,17 @@ def get_section_paragraphs(page_url, specific_summary_dir):
             chapter_paras = chapter_soup.findAll(["p", "h3"])
 
             iframe_text = "Your browser does not support the IFRAME tag."
-            # print (link_text, ":::", chapter_paras[3].text.strip().replace(iframe_text, ""), "\n")
-            section_text = chapter_paras[3].text.strip().replace(iframe_text, "").replace("\r\n"," ").replace("\n"," ")
+
+            pat = "(.*summary )(.*)"
+
+            for ix, chapter_para in enumerate(chapter_paras):
+                try:
+                    section_text = chapter_para.text.strip().replace(iframe_text, "").replace("\r\n"," ").replace("\n"," ")
+                    if re.match(pat, section_text, re.IGNORECASE):
+                        break
+                except: # No text inside the para HTML
+                    continue
+                    
             section_text = unidecode(section_text)
             section_text = ". ".join([line.strip().rstrip() for line in section_text.split('. ')])
             section_title = link_text
@@ -206,7 +214,7 @@ def get_section_paragraphs(page_url, specific_summary_dir):
 
 # For each summary info
 for k, (title, page_url) in enumerate(summary_infos):
-    print('\n>>> {}. {} <<<'.format(k, page_url))
+    print('\n>>> {}. {} - {} <<<'.format(k, title, page_url))
 
     # Create a directory for the work if needed
     specific_summary_dir = os.path.join(SUMMARY_DIR, title)
@@ -214,6 +222,7 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory, skipping.")
+        continue
 
     # Parse page
     try:

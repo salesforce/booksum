@@ -22,6 +22,8 @@ alphabet_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'
 
 SEED_URL = 'https://web.archive.org/web/20210111015641/http://thebestnotes.com/list/titles'
 
+errors_file = open("link_errors.txt","w")
+
 def scrape_index_pages(seed_page):
 # For each summary info
 
@@ -55,9 +57,8 @@ def scrape_index_pages(seed_page):
                 })
             
             except Exception as e:
-                print ("Link not found")
-                print (e)
-                
+                print ("Skipping: ", books_page, " :Link not found")
+                errors_file.write(books_page + "\t" + str(e) + "\n")
 
     return scraped_links
 
