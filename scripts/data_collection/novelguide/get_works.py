@@ -28,37 +28,40 @@ def scrape_index_pages(seed_page):
     scraped_links = []
 
     for char in alphabet_list:
+        
+        page_no = 1
         books_page = seed_page + char
 
-        page_no = 0
+        while(True):
 
-        try:
+            try:
 
-            soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
-            items = soup.findAll("ul", {"class": "search-title"})
-            books = items[0].findAll("li")
+                soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+                items = soup.findAll("ul", {"class": "search-title"})
+                books = items[0].findAll("li")
 
-            # print (books)
+                # # Go over each section
+                for index, item in enumerate(books):
+                    # Parse section to get bullet point text
 
-            # # Go over each section
-            for index, item in enumerate(books):
-                # Parse section to get bullet point text
+                    item_title = item.find("a").text
+                    item_url = item.find("a").get("href")
 
-                item_title = item.find("a").text
-                item_url = item.find("a").get("href")
+                    print ("item_title: ", item_title.strip())
+                    print ("item_url: ", item_url.strip())
+                    print ("\n")
 
-                print ("item_title: ", item_title.strip())
-                print ("item_url: ", item_url.strip())
-                print ("\n")
+                    scraped_links.append({
+                        "title": item_title.strip(),
+                        "url": urllib.parse.urljoin(MAIN_SITE, item_url.strip())
+                    })
 
-                scraped_links.append({
-                    "title": item_title.strip(),
-                    "url": urllib.parse.urljoin(MAIN_SITE, item_url.strip())
-                })
+            except Exception:
+                print ("No books found on page: ", books_page)
+                break
 
-        except Exception:
-
-            print ("No books found with title: ", char)
+            books_page = seed_page + char + "?page=" + str(page_no)
+            page_no += 1
             
     return scraped_links
 
