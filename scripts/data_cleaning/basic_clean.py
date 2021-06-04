@@ -15,7 +15,7 @@ import os
 import re
 from unidecode import unidecode
 
-sources = ['gradesaver', 'shmoop',  'cliffnotes', 'sparknotes', 'barronbooks', 'bookwolf',  'novelguide', 'thebestnotes']
+sources = ['gradesaver', 'shmoop',  'cliffnotes', 'sparknotes', 'pinkmonkey', 'bookwolf',  'novelguide', 'thebestnotes']
 
 BASE_DIR = "../raw_summaries/"
 

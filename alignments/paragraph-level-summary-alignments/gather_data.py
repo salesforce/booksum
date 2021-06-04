@@ -221,7 +221,6 @@ if __name__ == "__main__":
     parser.add_argument('--join_strings', action='store_true')
     parser.add_argument('--split_paragraphs', action='store_true')
     parser.add_argument('--matched_file', type=str, required=True)
-    #Split paragraphs does what jloin strings does automatically. Why?
     args = parser.parse_args()
 
     if args.join_strings and args.split_paragraphs or (not args.join_strings and not args.split_paragraphs):

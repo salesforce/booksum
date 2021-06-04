@@ -75,8 +75,9 @@ Note: At the time of collecting the data, all links in literature_links.tsv were
 For each data source, run `get_works.py` to first fetch the links for each book, and then run `get_summaries.py` to get the summaries from the collected links.
 
 ```
-python scripts/data_collection/cliffnotes/get_works.py
-python scripts/data_collection/cliffnotes/get_summaries.py
+cd scripts/data_collection/cliffnotes/
+python get_works.py
+python get_summaries.py
 ```
 
 #### 3. Data Cleaning
@@ -85,17 +86,18 @@ Data Cleaning is performed through the following steps:
 
 First script for some basic cleaning operations, like removing parentheses, links etc from the summary text
 ```
-python scripts/data_cleaning_scripts/basic_clean.py
+cd scripts/data_cleaning_scripts/
+python basic_clean.py
 ```
 
 We use intermediate alignments in  summary_chapter_matched_all_sources.jsonl to identify which summaries are separable, and separates them, creating new summaries (eg. Chapters 1-3 summary separated into 3 different files - Chapter 1 summary, Chapter 2 summary, Chapter 3 summary)
 ```
-python scripts/data_cleaning_scripts/split_aggregate_chaps_all_sources.py
+python split_aggregate_chaps_all_sources.py
 ```
 
 Lastly, our final cleaning script using various regexes to separate out analysis/commentary text, removes prefixes, suffixes etc.
 ```
-python scripts/data_cleaning_scripts/clean_summaries.py
+python clean_summaries.py
 ```
 
 #### Data Alignments
@@ -103,12 +105,12 @@ Generating paragraph alignments from the chapter-level-summary-alignments, is pe
 
 Gather the data from the summaries and book chapters into a single jsonl
 ```
-python paragraph-level-summary-alignments/gather_data.py
+python paragraph-level-summary-alignments/gather_data.py --split_paragraphs
 ```
 
 Generate alignments of the paragraphs with sentences from the summary using the bi-encoder **paraphrase-distilroberta-base-v1**
 ```
-python paragraph-level-summary-alignments/align_data_bi_encoder_paraphrase.py
+python paragraph-level-summary-alignments/align_data_bi_encoder_paraphrase.py --stable_alignment
 ```
 
 Aggregate the generated alignments for cases where multiple sentences from chapter-summaries are matched to the same paragraph from the book

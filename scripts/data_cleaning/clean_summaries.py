@@ -16,7 +16,7 @@ from tqdm import tqdm
 from os.path import basename
 
 # We clean one source at a time
-sources = ['gradesaver', 'shmoop',  'cliffnotes', 'sparknotes','barronbooks', 'bookwolf',  'novelguide', 'thebestnotes']
+sources = ['gradesaver', 'shmoop',  'cliffnotes', 'sparknotes','pinkmonkey', 'bookwolf',  'novelguide', 'thebestnotes']
 
 for ix, source in tqdm(enumerate(sources)):
 

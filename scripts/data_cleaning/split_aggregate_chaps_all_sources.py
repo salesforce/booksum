@@ -392,7 +392,11 @@ for line in tqdm(fp_lines):
         if (book_unique_id != prev_book_unique_id) and prev_book_unique_id != "":
             summaries_counted = 0
 
-        summary_path =  x['summary_path']
+        summary_path =  os.path.join("../", x['summary_path'])
+
+        if not os.path.exists(summary_path):
+            # Summary directory missing
+            continue
 
         num_toc_lines, summary_dir_count = get_summary_files_chapter_count(x)
 

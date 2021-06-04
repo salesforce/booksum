@@ -74,12 +74,12 @@ for k, (title, page_url) in enumerate(summary_infos):
 
     try:
         soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+        summary_section = soup.find("span", {"id": "Summary"}).find_parent("div")
     except Exception as e:
         print (page_url, e)
         f_errors.write(title + "\t" + page_url + "\t" + str(e) + "\n")
         continue
 
-    summary_section = soup.find("span", {"id": "Summary"}).find_parent("div")
     summary_links = summary_section.findAll("a")
     summary_links = [link.get("href") for link in summary_links if "section" in link.get("href")]
 
@@ -125,6 +125,9 @@ for k, (title, page_url) in enumerate(summary_infos):
 
             section_paragraphs.append(subsection_data.text.strip().replace("\n", " "))
 
+        if section_paragraphs == []:
+            continue
+            
         section_text = "<PARAGRAPH>".join(section_paragraphs)
 
         if "Summary:" in section_text and "Analysis:" in section_text:

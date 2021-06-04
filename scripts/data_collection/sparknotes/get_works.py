@@ -30,7 +30,7 @@ def scrape_index_pages(seed_page):
     except Exception as e:
         print ("Skipping: ", seed_page)
         errors_file.write(seed_page + "\t" + str(e) + "\n")
-        continue
+        return []
 
     items = soup.findAll("li", {"class": "hub-AZ-list__card hub-AZ-list__card--byTitle"})
     print("Found %d items." % len(items))

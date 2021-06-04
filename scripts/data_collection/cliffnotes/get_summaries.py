@@ -108,6 +108,7 @@ for k, (title, page_url) in enumerate(summary_infos):
 
             print (section, e)
             errors_file.write(section + "\t" + str(e) + "\n")
+            continue
 
         section_text = "<PARAGRAPH>".join(section_paragraphs).replace("Continued on next page...", "")
 
