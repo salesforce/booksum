@@ -103,24 +103,26 @@ python clean_summaries.py
 #### Data Alignments
 Generating paragraph alignments from the chapter-level-summary-alignments, is performed individually for the train/test/val splits:
 
-Gather the data from the summaries and book chapters into a single jsonl
+Gather the data from the summaries and book chapters into a single jsonl. The script needs to be run separately for each split as the matched file
 ```
-python paragraph-level-summary-alignments/gather_data.py --split_paragraphs
+cd paragraph-level-summary-alignments
+python gather_data.py --matched_file /path/to/chapter_summary_aligned_{train/test/val}_split.jsonl --split_paragraphs
 ```
 
 Generate alignments of the paragraphs with sentences from the summary using the bi-encoder **paraphrase-distilroberta-base-v1**
 ```
-python paragraph-level-summary-alignments/align_data_bi_encoder_paraphrase.py --stable_alignment
+python align_data_bi_encoder_paraphrase.py --data_path /path/to/chapter_summary_aligned_{train/test/val}_split.jsonl.gathered --stable_alignment
 ```
 
-Aggregate the generated alignments for cases where multiple sentences from chapter-summaries are matched to the same paragraph from the book
+Aggregate the generated alignments for cases where multiple sentences from a chapter summary are matched to the same paragraph from the book chapter
 ```
-python paragraph-level-summary-alignments/aggregate_paragraph_alignments_bi_encoder_paraphrase.py
+python aggregate_paragraph_alignments_bi_encoder_paraphrase.py --file train/test/val
 ```
 
 ## Troubleshooting
 1. The web archive links we collect the summaries from can often be unreliable, taking a long time to load. One way to fix this is to use higher sleep timeouts when one of the links throws an exception, which has been implemented in some of the scripts.
 2. Some links that constantly throw errors are aggregated in a file called - 'section_errors.txt'. This is useful to inspect which links are actually unavailable and re-running the data collection scripts for those specific links.
+3. Some paths in the provided files might throw errors depending on where the chapterized books have been downloaded. It is recommended to download them in booksum root directory for the scripts to work without requiring any modifications to the paths.
 
 
 ## Get Involved

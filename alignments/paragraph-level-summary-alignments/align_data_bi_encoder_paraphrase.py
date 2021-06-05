@@ -1,5 +1,6 @@
 """
-Script used to generate bi-encoder paraphrase alignment of the paragraphs with sentences from the summary
+Script used to generate bi-encoder paraphrase alignment of the paragraphs with sentences from the summary.
+It is recommended to run this script on a GPU machine.
 """
 
 #!/usr/bin/env python
@@ -31,6 +32,8 @@ from nltk.translate.meteor_score import meteor_score
 from bert_score import BERTScorer
 from transformers import AutoTokenizer
 from nltk.tokenize import word_tokenize, sent_tokenize
+
+from sentence_transformers import SentenceTransformer, util
 
 # change recursion limit
 sys.setrecursionlimit(5000)
@@ -172,9 +175,6 @@ def gather_data(alignments_bi_encoder_paraphrase, paragraphs, summaries, similar
         
         examples.append(example)
 
-        # pp.pprint(example)
-        # print ("============================")
-
     return examples
 
 
@@ -223,7 +223,7 @@ def main(args):
 
         # compute similarities
         #Initially we tried both roberta and paraphrase bi encoder
-        similarity_matrix_bi_encoder_paraphrase, similarity_matrix_bi_encoder_roberta = compute_similarities_bi_encoder(paragraphs, summaries)
+        similarity_matrix_bi_encoder_paraphrase = compute_similarities_bi_encoder(paragraphs, summaries)
 
         # For all our experimental results, we perform stable alignment        
         if args.stable_alignment:
@@ -236,7 +236,7 @@ def main(args):
 
             # visualize_alignments(similarity_matrix_bi_encoder_paraphrase, stable_alignments_bi_encoder_paraphrase, title, args.output_dir)
 
-            with open(basename(args.data_path) + ".stable.bi_encoder_paraphrase", "a") as fd:
+            with open(basename(args.data_path) + ".stable.bi_encoder_paraphrase", "w") as fd:
                 for stable_example in stable_examples:
                     fd.write(json.dumps(stable_example) + "\n")
 
@@ -247,11 +247,9 @@ def main(args):
             greedy_alignments = align_data_greedy_matching(similarity_matrix_bi_encoder_paraphrase)
             greedy_examples = gather_data(greedy_alignments, paragraphs, summaries, similarity_matrix_bi_encoder_paraphrase, title)
 
-            with open(basename(args.data_path) + ".greedy", "a") as fd:
+            with open(basename(args.data_path) + ".greedy", "w") as fd:
                 for greedy_example in greedy_examples:
                     fd.write(json.dumps(greedy_example) + "\n")
-
-        # break
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

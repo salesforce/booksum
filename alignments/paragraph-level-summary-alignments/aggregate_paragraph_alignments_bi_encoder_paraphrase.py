@@ -51,7 +51,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str, required=True)
+    parser.add_argument('--file', type=str, required=True, choices=["train", "test", "val"])
     args = parser.parse_args()
 
     main(args)

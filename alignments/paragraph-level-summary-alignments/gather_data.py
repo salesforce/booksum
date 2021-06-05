@@ -11,9 +11,6 @@ import spacy
 
 from tqdm import tqdm
 
-
-
-
 def fix_leftover_headers(summary_content):
     """
     Function removes leftover prefixes from the summary text, such as: Chapter 1, Chapter V, Analysis, etc.
@@ -173,10 +170,13 @@ def main(args):
 
     spacy_nlp = spacy.load('en_core_web_lg', disable=["tagger", "ner", "textcat","lemmatizer"])
 
+    CHAPTERIZED_BOOKS_DIR = "../../"
+    FINISHED_SUMMARIES_DIR = "../../scripts/"
+
     # gather data
     processed_data = []
     for example in tqdm(raw_data):
-        with open(example["chapter_path"]) as fd:
+        with open(os.path.join(CHAPTERIZED_BOOKS_DIR, example["chapter_path"])) as fd:
             if args.join_strings:
                 chapter_content = " ".join([line.strip() for line in fd.readlines()])
             elif args.split_paragraphs:
@@ -186,7 +186,12 @@ def main(args):
             else:
                 raise RuntimeError("Unknown processing option")
 
-        with open(example["summary_path"]) as fd:
+        summary_path = os.path.join(FINISHED_SUMMARIES_DIR, example["summary_path"])
+
+        if not os.path.exists(summary_path):
+            continue
+            
+        with open(summary_path) as fd:
             if args.join_strings:
                 summary_content = " ".join([line.strip() for line in json.loads(fd.read())["summary"]])
             elif args.split_paragraphs:
