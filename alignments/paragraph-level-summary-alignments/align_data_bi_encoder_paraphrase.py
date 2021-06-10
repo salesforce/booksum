@@ -10,28 +10,17 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter("ignore", ResourceWarning)
 
 import argparse
-import io
 import json
 import os
 from os.path import basename
-import re
-import six
 import sys
 import pprint
 import spacy
-import rouge
 import numpy as np
-import rouge.rouge_score as rouge_score
 import warnings
-from collections import Counter
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-from nltk.stem.snowball import SnowballStemmer
 from matching.games import HospitalResident
-from nltk.translate.meteor_score import meteor_score
-from bert_score import BERTScorer
-from transformers import AutoTokenizer
-from nltk.tokenize import word_tokenize, sent_tokenize
 
 from sentence_transformers import SentenceTransformer, util
 
@@ -41,7 +30,6 @@ sys.setrecursionlimit(5000)
 # https://huggingface.co/sentence-transformers/paraphrase-distilroberta-base-v1
 model_bi_encoder_paraphrase = SentenceTransformer('paraphrase-distilroberta-base-v1')
 
-
 model_bi_encoder_paraphrase.max_seq_length = 512
 
 pp = pprint.PrettyPrinter(indent=2)
@@ -50,7 +38,6 @@ error_logs_file = open("error_logs.jsonl","a")
 
 warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-
 
 # Breaks down chapter text into smaller length paragraphs that we can align ground truth summary sentences to
 def merge_text_paragraphs(paragraphs, min_sent=3, max_sent=12):
@@ -154,7 +141,7 @@ def compute_similarities_bi_encoder(paragraphs, summaries):
     paragraphs_embeddings_paraphrase = model_bi_encoder_paraphrase.encode(paragraphs, convert_to_tensor=True)
     summaries_embeddings_paraphrase = model_bi_encoder_paraphrase.encode(summaries, convert_to_tensor=True)
 
-    similarity_matrix_bi_encoder_paraphrase = util.pytorch_cos_sim(summaries_embeddings_paraphrase, paragraphs_embeddings_paraphrase).numpy()
+    similarity_matrix_bi_encoder_paraphrase = util.pytorch_cos_sim(summaries_embeddings_paraphrase, paragraphs_embeddings_paraphrase).cpu().numpy()
 
     return similarity_matrix_bi_encoder_paraphrase
 
