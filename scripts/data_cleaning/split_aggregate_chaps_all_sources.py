@@ -29,6 +29,7 @@ from string import punctuation
 
 #An intermediate matched file is required 
 matched_books = "../../alignments/summary_chapter_matched_intermediate.jsonl"
+matched_books = "../../alignments/summary_chapter_matched_intermediate.jsonl"
 chapterized_books_dir = "../../" # replace with whereever the chapterized books are extracted
 
 
@@ -119,12 +120,14 @@ def replace_pat2(matched_str):
 # Separates the multiple chapter summaries we have found
 def separate_mulitple_summaries(summary_content, matched_numeric_roman, matched_numbers_nl, section_name_prefix, summary_path):
 
-    # All patterns should match starting of line
-    pat_num_rom = '^((chapter|scene) ([ivxl|0-9]{1,}))[^a-z0-9]?'
+    # print ("summary_content: ", summary_content)
 
-    pat_act_scene = '^((act) ([ivxl|0-9]{1,})[,-]{0,}[ ]{1,}(scene) ([ivxl|0-9]{1,}))[^a-z0-9]?'
-    # else:   #matched_numbers_nl must be true
-    pat_nl = '^((chapter|scene) (twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|one|two|three|four|five|six|seven|eight|nine|ten)([-|–]?)(eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|one|two|three|four|five|six|seven|eight|nine|ten)?)(.*$)'
+    # All patterns should match starting of line
+    pat_num_rom = '^(?:PARAGRAPH>)?((chapter|scene) ([ivxl|0-9]{1,}))[^a-z0-9]?'
+
+    pat_act_scene = '^(?:PARAGRAPH>)?((act) ([ivxl|0-9]{1,})[,-]{0,}[ ]{1,}(scene) ([ivxl|0-9]{1,}))[^a-z0-9]?'
+
+    pat_nl = '^(?:PARAGRAPH>)?((chapter|scene) (twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|one|two|three|four|five|six|seven|eight|nine|ten)([-|–]?)(eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|one|two|three|four|five|six|seven|eight|nine|ten)?)(.*$)'
     # Also need to convert in this case
 
     #Break the entire summary content into lines and check for <PARAGRAPH> tag too in the regex
@@ -475,7 +478,10 @@ for line in tqdm(fp_lines):
                 # section name. In such a case, refrain from the splitting the summary into chapters
                 if '' not in separated_summaries.keys() and ' ' not in separated_summaries.keys():
                     summaries_counted += save_separated_summaries(separated_summaries, summary_json, summary_path, section_summary_title)
+                    
+                    # Remove the old summary path
                     os.remove(summary_path)
+
                     f_matched_section_splits.write(section_summary_title + " : ")
                     for key, val in separated_summaries.items():
                         f_matched_section_splits.write(key + " | ")
@@ -483,8 +489,6 @@ for line in tqdm(fp_lines):
                     
                     f_matched_section_splits.write(summary_path)
                     f_matched_section_splits.write("\n")
-                    # print ("WRITTEN \n")
-                    # Remove the old summary path
 
         else:
             # No need to separate, save as is
