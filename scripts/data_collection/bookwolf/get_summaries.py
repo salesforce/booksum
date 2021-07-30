@@ -22,13 +22,14 @@ from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
 from unidecode import unidecode
 import time
+import pdb
 
 # PARAMS
 SUMMARY_DIR = '../../raw_summaries/bookwolf/summaries'
 MAIN_SITE = 'https://web.archive.org/web/20210120012015/http://www.bookwolf.com/'
 
 # Summary list info
-summary_list_file = "literature_links.tsv"
+summary_list_file = 'literature_links.tsv.pruned'
 
 #File for capturing the HTTP Errors, for webpages that are not found
 f_errors = open("section_errors.txt","w")
@@ -64,22 +65,21 @@ def get_overview_paragraphs(overview_links, specific_summary_dir):
                 f_errors.write(overview + "\t" + name + "\t" + specific_summary_dir + "\n")
                 continue
 
-            overview_text = "\n".join(overview_paragraphs)
-            
-            overview_dict = {}
-            overview_dict["name"] = "Overview"
-            overview_dict["summary"] = overview_text
+        overview_text = "\n".join(overview_paragraphs)
         
-            output_fname = os.path.join(specific_summary_dir, "overview.json")
-            with open(output_fname, 'w', encoding="utf-8") as fp:
-                json.dump(overview_dict, fp)
+        overview_dict = {}
+        overview_dict["name"] = "Overview"
+        overview_dict["summary"] = overview_text
+
+        output_fname = os.path.join(specific_summary_dir, "overview.json")
+        with open(output_fname, 'w', encoding="utf-8") as fp:
+            json.dump(overview_dict, fp)
 
 def get_section_paragraphs(section_links, specific_summary_dir):
     #Fetch chapter level summary
     for index, (section, name) in enumerate(section_links):
-        
+
         try:
-            
             print (name, section)
             soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
             section_data = soup.find("td", {"class": "TextObject"})
@@ -100,38 +100,43 @@ def get_section_paragraphs(section_links, specific_summary_dir):
         section_paragraphs = []
         section_analysis = []
 
-        start = -1
+        # Recursive function to parse HTML with upper case tags
+        def parse_upper_case_html_tags(paragraph):
 
-        for paragraph in section_data.findAll("p", recursive=False):
-            
-            # Trim out anything before the actual summary starts
-            if paragraph.text.strip().lower() in ["summary", "context"] or 'book' in paragraph.text.strip().lower():
-                start = 1
+            paragraph_text = paragraph.text
 
-            if start == -1:
-                continue
-
-            # If interpretation exists
-            if paragraph.text.strip() == "Interpretation":
-                start = 0
-            
-            if start:
-                section_paragraphs.append(unidecode(paragraph.text.strip()))
-            else:
-                section_analysis.append(unidecode(paragraph.text.strip()))
+            if "<P STYLE=" in paragraph_text or 'SPAN' in paragraph_text:
+                paragraph_soup = BeautifulSoup(paragraph_text, 'html.parser')
+                paragraphs = paragraph_soup.findAll("p")
+                para_text_list = []
+                for para in paragraphs:
+                    para_text = parse_upper_case_html_tags(para)
+                    para_text_list.append(para_text)
                 
-        section_text = "\n".join(section_paragraphs)
-        section_interpretation = "\n".join(section_analysis)
+                return " ".join(para_text_list)
+
+            return paragraph_text
+
+        for paragraph in section_data.findAll("p", recursive=True):
+
+            paragraph_text = parse_upper_case_html_tags(paragraph).replace("&#8220", " ").replace("&#8221", " ")
+            paragraph_text = " ".join(paragraph_text.split())
+
+            if paragraph_text == 'advertisement' or 'Bookwolf' in paragraph_text:
+                continue
+            
+            section_paragraphs.append(unidecode(paragraph_text.strip()))
+
+        section_text = "<PARAGRAPH>".join(section_paragraphs)
 
         section_dict = {}
         section_dict["name"] = name
         section_dict["summary"] = section_text
-        section_dict["analysis"] = section_interpretation
 
         output_fname = os.path.join(specific_summary_dir, 'section_%d.txt' % (index-1))
         with open(output_fname, 'w', encoding="utf-8") as fp:
             json.dump(section_dict, fp)
-        
+
 
 # For each summary info
 for k, (title, page_url) in enumerate(summary_infos):
@@ -144,7 +149,7 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory.")
-        continue
+        # continue
 
     # Parse page
     print ("page_url: ", page_url)
@@ -170,14 +175,12 @@ for k, (title, page_url) in enumerate(summary_infos):
     and "character" not in link.text.lower() and "questions" not in link.text.lower() and "life at the time" not in link.text.lower()\
     and "theme" not in link.text.lower() and "foreword" not in link.text.lower() and "background" not in link.text.lower()\
     and "symbolism" not in link.text.lower() and "introduction" not in link.text.lower() and "characterization" not in link.text.lower()\
-    and "setting" not in link.text.lower() and "family life" not in link.text.lower() and "comment" not in link.text.lower() ) ]
+    and "setting" not in link.text.lower() and "family life" not in link.text.lower() and "comment" not in link.text.lower() \
+    and "context" not in link.text.lower() ) ]
     
-    print ("overview_link: ", overview_links)
-    print ("section_links: ", section_links)
-
     if len(overview_links) != 0:
         get_overview_paragraphs(overview_links, specific_summary_dir)
 
     if len(section_links) != 0:
         get_section_paragraphs(section_links, specific_summary_dir)
-    
+

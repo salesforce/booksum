@@ -18,7 +18,7 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 
 # PARAMS
 MAIN_SITE = 'https://web.archive.org/'
-SEED_URL = 'https://web.archive.org/web/20210120012015/http://www.bookwolf.com/Welcome_to_Bookwolf1/welcome_to_bookwolf1.html'
+SEED_URL = 'https://web.archive.org/web/20210120012015/https://www.bookwolf.com/Welcome_to_Bookwolf1/welcome_to_bookwolf1.html'
 
 def scrape_index_pages(seed_page):
 # For each summary info

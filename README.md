@@ -72,11 +72,10 @@ or downloaded directly [here](https://storage.cloud.google.com/sfr-books-dataset
 Data collection scripts for the summary text are organized by the different sources that we use summaries from.
 Note: At the time of collecting the data, all links in literature_links.tsv were working for the respective sources. 
 
-For each data source, run `get_works.py` to first fetch the links for each book, and then run `get_summaries.py` to get the summaries from the collected links.
+For each data source, the file `literature_links.tsv.pruned` contains the links for the books in our dataset. Run `get_summaries.py` to collect the summaries from the links for each source. Additionally, `get_works.py` can be used to collect an exhaustive set of summaries from that source.
 
 ```
 cd scripts/data_collection/cliffnotes/
-python get_works.py
 python get_summaries.py
 ```
 

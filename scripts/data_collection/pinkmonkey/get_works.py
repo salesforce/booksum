@@ -14,17 +14,13 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
-
+import time
 
 # Book summaries from barronsbooknotes redirect to pinkmonkey
-
-# PARAMS
 MAIN_SITE = 'https://web.archive.org/web/20180820042551/http://barronsbooknotes.com/'
-
-alphabet_list = string.ascii_lowercase
-
 SEED_URL = 'https://web.archive.org/web/20180820042551/http://barronsbooknotes.com/'
 
+alphabet_list = string.ascii_lowercase
 errors_file = open("link_errors.txt","w")
 
 def scrape_index_pages(seed_page):
@@ -39,9 +35,13 @@ def scrape_index_pages(seed_page):
         try:
             soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
         except Exception as e:
-            print ("Skipping: ", books_page)
-            errors_file.write(books_page + "\t" + str(e) + "\n")
-            continue
+            time.sleep(10)
+            try:
+                soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+            except Exception as e:
+                print ("Skipping: ", books_page, e)
+                errors_file.write(books_page + "\t" + str(e) + "\n")
+                continue
 
         items = soup.findAll("div", {"align": "left"})
         books = items[0].findAll("a")
@@ -60,10 +60,8 @@ def scrape_index_pages(seed_page):
                 if item_title != "":
 
                     print ("item_title: ", item_title)
-                    print ("item_url: ", item_url.strip())
-                    print ("\n")
+                    print ("item_url: ", item_url.strip(), "\n")
 
-                
                     scraped_links.append({
                         "title": " ".join(item_title.split()),
                         "url": urllib.parse.urljoin(MAIN_SITE, item_url.strip())

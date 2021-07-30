@@ -19,12 +19,15 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 from unidecode import unidecode
 import argparse, string
 
+import time
+from urllib.error import HTTPError, URLError
+
 # PARAMS
 SUMMARY_DIR = '../../raw_summaries/thebestnotes/summaries'
 MAIN_SITE = 'https://web.archive.org/web/20210111015641/http://thebestnotes.com/'
 
 # Summary list info
-summary_list_file = "literature_links.tsv"
+summary_list_file = 'literature_links.tsv.pruned'
 
 # Create a fresh file for the links that throw HTTP errors, so that we can try access them again
 f_errors = open("section_errors.txt","w")
@@ -41,8 +44,24 @@ def unify_title(title):
 
 def get_overview_paragraphs(overview):
 
+    if 'https:/the' in overview:
+            overview = overview.replace('https:/the', 'https://the')
+
+    if 'http:/the' in overview:
+        overview = overview.replace('http:/the', 'http://the')
+
     try:
         soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
+    except URLError as err:
+        print (err, overview, "Retrying after sleep")
+        time.sleep(10)
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
+        except Exception as e:
+            print (overview, e)
+            f_errors.write(overview + "\t" + str(e))
+            f_errors.write("\n")
+            return
     except Exception as e:
         print (overview, e)
         f_errors.write(overview + "\t" + str(e))
@@ -67,10 +86,28 @@ def get_overview_paragraphs(overview):
     return overview_paragraphs
 
 
-
 def get_section_paragraphs(section, section_titles, section_title_orig, specific_summary_dir, index):
+    
+    book_name = os.path.basename(specific_summary_dir)
+
+    if 'https:/the' in section:
+        section = section.replace('https:/the', 'https://the')
+
+    if 'http:/the' in section:
+        section = section.replace('http:/the', 'http://the')
+
     try:
         soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
+    except URLError as err:
+        print (err, section, "Retrying after sleep")
+        time.sleep(10)
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
+        except Exception as e:
+            print (section, e)
+            f_errors.write(section + "\t" + str(e))
+            f_errors.write("\n")
+            return []
     except Exception as e:
         print (section_title_orig, section, e)
         f_errors.write(str(index+1) + "\t" + section + "\t" + str(section_titles) + "\t" + section_title_orig + "\t" + specific_summary_dir + "\n")
@@ -91,10 +128,6 @@ def get_section_paragraphs(section, section_titles, section_title_orig, specific
         section_title = unify_title(section_title.strip())
 
         if structured_page:
-            # The summary header doesn't exist on a structured page as shown in the example link
-            # The <p> tag directly after the title contains the required info
-            # However, this introduces several other elements like 'setting', 'themes' etc in the sections
-            # we save for the structured pages, which shall hopefully be handled in the matching process
 
             for paragraph in soup.findAll(["p", "h2", "h6"]):
 
@@ -119,13 +152,13 @@ def get_section_paragraphs(section, section_titles, section_title_orig, specific
 
             for paragraph in soup.findAll(["p", "h2", "h6"]):
 
-                if section_title in unify_title(" ".join(paragraph.text.strip().lower().split())) and paragraph.name in ["h2", "h6"]:
+                if section_title in unify_title(" ".join(paragraph.text.strip().lower().split())) and (paragraph.name in ["h2", "h6"] or (book_name == "Looking Backward: 2000-1887" and paragraph.name in ["p", "h2", "h6"])):
                     flag = 1
                     continue
 
                 # continue collecting text from the rest of the p tags
                 if flag == 1 and "thebestnotes" not in paragraph.text.strip().lower() and \
-                (paragraph.name in ["h2", "h6"] and (paragraph.text.replace("\r\n","").strip() == "" or \
+                ((paragraph.name in ["h2", "h6"] or (book_name == "Looking Backward: 2000-1887" and paragraph.name in ["p", "h2", "h6"])) and (paragraph.text.replace("\r\n","").strip() == "" or \
                 paragraph.text.strip().lower() == "summary")):
                     if paragraph.text.strip() != "":
                         flag = 2
@@ -137,8 +170,9 @@ def get_section_paragraphs(section, section_titles, section_title_orig, specific
                     if paragraph.text.strip() != "":
                         section_paragraphs.append(paragraph.text.replace("\r\n","").strip())
                 else:
-                    flag = 0
-                    # end collecting the summary 
+                    if flag == 2:
+                        flag = 0
+                        # end collecting the summary 
             
             if (len(section_paragraphs) > 0):
                 break
@@ -149,7 +183,7 @@ def get_section_paragraphs(section, section_titles, section_title_orig, specific
 
 def save_section_para(section_paragraphs, section_titles, section_title_orig, section, specific_summary_dir, index):
 
-    print (section_titles[0], section)
+    print ("save_section_para: ", section_titles[0], section)
 
     section_text = "<PARAGRAPH>".join(section_paragraphs)
 
@@ -160,6 +194,7 @@ def save_section_para(section_paragraphs, section_titles, section_title_orig, se
     section_dict["url"] = section
 
     output_fname = os.path.join(specific_summary_dir, 'section_%d.txt' % int(index))
+    # print ("output_fname: ", output_fname, "\n")
     with open(output_fname, 'w', encoding="utf-8") as fp:
         json.dump(section_dict, fp)
 
@@ -174,10 +209,23 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory")
-        continue
+        # continue
+
+    print ("page_url: ", page_url)
 
     # Parse page
-    soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    except URLError as err:
+        print (err, page_url, "Retrying after sleep")
+        time.sleep(10)
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+        except Exception as e:
+            print (page_url, e)
+            f_errors.write(page_url + "\t" + str(e))
+            f_errors.write("\n")
+            continue
 
     one_level_up_url = os.path.dirname(page_url) + "/"
 
@@ -189,6 +237,7 @@ for k, (title, page_url) in enumerate(summary_infos):
     index = -1 # For section numbers
 
     for link in navigation_links:
+
         if 'synopsis' in " ".join(link.text.strip().lower().split()):
             overview = urllib.parse.urljoin(one_level_up_url, link.get("href"))
             overview_title = link.text.strip().lower()

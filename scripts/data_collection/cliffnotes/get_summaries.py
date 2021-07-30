@@ -17,14 +17,15 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
-
+from urllib.error import HTTPError, URLError
+import time
 
 # PARAMS
 SUMMARY_DIR = '../../raw_summaries/cliffnotes/summaries'
 MAIN_SITE = 'https://web.archive.org/web/20210312193150/https://www.cliffsnotes.com/'
 
 # Summary list info
-summary_list_file = "literature_links.tsv"
+summary_list_file = 'literature_links.tsv.pruned'
 
 errors_file = open("section_errors.txt","w")
 
@@ -72,10 +73,15 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory, skipping.")
-        continue
+        # continue
 
     # Parse page
-    soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    try:
+        soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    except Exception as e:
+            print (page_url, e)
+            errors_file.write(page_url + "\t" + str(e) + "\n")
+            continue    
 
     # Parse general summary
     navigation_links = soup.find("section", {"class": "secondary-navigation"})
@@ -98,18 +104,31 @@ for k, (title, page_url) in enumerate(summary_infos):
 
             
     for index, section in enumerate(section_links):
+        
+
         try:
             soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
-            section_header = soup.title.string.strip()
-
-            section_paragraphs = list(filter(None, scrape_section_continuation(soup, section_header)))
+        except URLError as err:
+            print (err, "Retrying after sleep")
+            time.sleep(10)
+            try:
+                soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
+            except Exception as e:
+                print (section, e)
+                errors_file.write(section + "\t" + str(e))
+                errors_file.write("\n")
+                continue
 
         except Exception as e:
-
             print (section, e)
             errors_file.write(section + "\t" + str(e) + "\n")
             continue
 
+        section_header = soup.title.string.strip()
+
+        print (section_header, section)
+
+        section_paragraphs = list(filter(None, scrape_section_continuation(soup, section_header)))
         section_text = "<PARAGRAPH>".join(section_paragraphs).replace("Continued on next page...", "")
 
         # clean up and parse

@@ -17,10 +17,11 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 
 # PARAMS
 MAIN_SITE = 'https://web.archive.org/web/20210225014436/https://www.novelguide.com/'
+SEED_URL = 'https://web.archive.org/web/20210225014436/https://www.novelguide.com/title/'
 
 alphabet_list = string.ascii_lowercase + '1'
 
-SEED_URL = 'https://web.archive.org/web/20210225014436/https://www.novelguide.com/title/'
+errors_file = open("link_errors.txt","w")
 
 def scrape_index_pages(seed_page):
 # For each summary info
@@ -28,7 +29,6 @@ def scrape_index_pages(seed_page):
     scraped_links = []
 
     for char in alphabet_list:
-        
         page_no = 1
         books_page = seed_page + char
 
@@ -56,8 +56,10 @@ def scrape_index_pages(seed_page):
                         "url": urllib.parse.urljoin(MAIN_SITE, item_url.strip())
                     })
 
-            except Exception:
-                print ("No books found on page: ", books_page)
+            except Exception as e:
+                print (books_page, str(e))
+                errors_file.write(books_page + "\t" + str(e) + "\n")
+
                 break
 
             books_page = seed_page + char + "?page=" + str(page_no)

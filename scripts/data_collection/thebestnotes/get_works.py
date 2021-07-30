@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
+import time
 
 # PARAMS
 MAIN_SITE = 'https://web.archive.org/web/20210111015641/http://thebestnotes.com/'
@@ -32,20 +33,33 @@ def scrape_index_pages(seed_page):
     for char in alphabet_list:
         books_page = seed_page + char + ".html"
 
-        soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
-        items = soup.findAll("div", {"class": "large-7 columns"})
-        books = items[0].findAll("p")
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+            items = soup.findAll("div", {"class": "large-7 columns"})
+            books = items[0].findAll("p")
+        except Exception as e:
+            time.sleep(10)
+            
+            # In order to handle timeouts
+            try:
+                soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+                items = soup.findAll("div", {"class": "large-7 columns"})
+                books = items[0].findAll("p")
+            except Exception as e:
+                print ("Skipping: ", books_page, str(e))
+                errors_file.write(books_page + "\t" + str(e) + "\n")
+                continue
 
         # # # Go over each section
         for index, item in enumerate(books):
             # Parse section to get bullet point text
+            
             try:
                 item_title = item.find("a").text
                 item_url = item.find("a").get("href")
 
                 print ("item_title: ", " ".join(item_title.split()))
-                print ("item_url: ", item_url.strip())
-                print ("\n")
+                print ("item_url: ", item_url.strip(), "\n")
 
                 #Don't add the book to the list if it isn't freely available
                 if 'store' in item_url:
@@ -57,8 +71,8 @@ def scrape_index_pages(seed_page):
                 })
             
             except Exception as e:
-                print ("Skipping: ", books_page, " :Link not found")
-                errors_file.write(books_page + "\t" + str(e) + "\n")
+                print ("Skipping: ", str(item), str(e), "\n")
+                errors_file.write(str(item) + "\t" + str(e) + "\n")
 
     return scraped_links
 

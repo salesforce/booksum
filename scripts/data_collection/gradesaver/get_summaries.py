@@ -16,13 +16,15 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
+import time
+from urllib.error import HTTPError, URLError
 
 # PARAMS
 SUMMARY_DIR = '../../raw_summaries/gradesaver/summaries'
-MAIN_SITE = 'https://web.archive.org/web/20210226083212/https://www.gradesaver.com/'
+MAIN_SITE = 'https://web.archive.org/web/20210630200124/https://www.gradesaver.com/'
 
 # Summary list info
-summary_list_file = "literature_links.tsv"
+summary_list_file = 'literature_links.tsv.pruned'
 
 errors_file = open("section_errors.txt","w")
 
@@ -33,7 +35,7 @@ with open(summary_list_file, 'r') as tsvfile:
 
 # For each summary info
 for k, (title, page_url) in enumerate(summary_infos):
-    print('\n>>> {}. {} <<<'.format(k, title))
+    print('\n>>> {}. {} {} <<<'.format(k, title, page_url))
 
     # Create a directory for the work if needed
     specific_summary_dir = os.path.join(SUMMARY_DIR, title)
@@ -41,28 +43,41 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory, skipping.")
-        continue
+        # continue
 
     # Parse page
     try:
         soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    except URLError as err:
+        print (err, page_url, "Retrying after sleep")
+        time.sleep(10)
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+        except Exception as e:
+            print (page_url, e)
+            errors_file.write(page_url + "\t" + str(e))
+            errors_file.write("\n")
+            continue
     except Exception as e:
-        print (page_url, e)
-        errors_file.write(page_url + "\t" + str(e))
-        continue
+        time.sleep(10)
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+        except Exception as e:
+            print (page_url, e)
+            errors_file.write(page_url + "\t" + str(e))
+            continue
 
 
     # # Parse general summary
     navigation_links = soup.find("ul", {"class": "navSection__list js--collapsible"})
     overview_links = [(urllib.parse.urljoin(MAIN_SITE, link.find("a").get("href")), link.text.strip()) for link in navigation_links.findAll("li") if link.text.strip() == title + " Summary"]
-    # print (overview_links)
+    print ("overview_links: ", overview_links)
 
     if len(overview_links) == 0:
         print ("No overview summaries found")
     else:
         for index, (overview, name) in enumerate(overview_links):
             try:
-                print (name, overview)
                 soup = BeautifulSoup(urllib.request.urlopen(overview), "html.parser")
                 overview_data = soup.find("article", {"class": "section__article"})
 
@@ -109,46 +124,69 @@ for k, (title, page_url) in enumerate(summary_infos):
         print ("No section summaries found")
     else:
         section_links = [(urllib.parse.urljoin(MAIN_SITE,link.find("a").get("href")), link.text.strip()) for link in section_links[0]]
-        # print (section_links)
 
         for index, (section, name) in enumerate(section_links):
             try:
                 print (name, section)
                 soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
-                section_data = soup.find("article", {"class": "section__article"})
-
-                section_paragraphs = []
-                section_analysis = []
-                start = 1
-                for paragraph in section_data.findAll(["p","h2"], recursive=False):
-                    
-                    #Skip the first word if it is "Summary" or "Context"
-                    if paragraph.text.strip().lower() in ["summary", "context"]:
-                        continue
-
-                    if paragraph.text.strip().lower() in ["analysis"]:
-                        start = 0
-                        continue
-                    
-                    if start:
-                        section_paragraphs.append(paragraph.text.strip())
-                    else:
-                        section_analysis.append(paragraph.text.strip())
-                    
-                section_text = "<PARAGRAPH>".join(section_paragraphs)
-                section_analysis_text = "<PARAGRAPH>".join(section_analysis)
-                
-                section_dict = {}
-                section_dict["name"] = name
-                section_dict["summary"] = section_text
-                section_dict["analysis"] = section_analysis_text
-                section_dict["url"] = section
-                
-
-                output_fname = os.path.join(specific_summary_dir, 'section_%d.txt' % index)
-                with open(output_fname, 'w', encoding="utf-8") as fp:
-                    json.dump(section_dict, fp)
-
+            except URLError as err:
+                print (err, section, "Retrying after sleep")
+                time.sleep(10)
+                try:
+                    soup = BeautifulSoup(urllib.request.urlopen(section), "html.parser")
+                except Exception as e:
+                    print (section, e)
+                    errors_file.write(section + "\t" + str(e))
+                    errors_file.write("\n")
+                    continue
+            
             except Exception as e:
-                print ("No section summary for: ", section)
-                print (e)
+                print ("No section summary found for: ", section, e)
+                errors_file.write(section + "\t" + str(e))
+                errors_file.write("\n")
+                continue
+
+            section_data = soup.find("article", {"class": "section__article"})
+            section_paragraphs = []
+            section_analysis = []
+            start = 1
+            
+            for paragraph in section_data.findAll(["p","h2", "h3", "h4"]):
+                
+                # Handle chapter name occuring before the title 'Summary'
+                # We want to capture it, not skip it
+                if re.search('^(chapter [ivxl|0-9]+)', paragraph.text.strip().lower(), re.IGNORECASE):
+                    section_paragraphs.append(paragraph.text.strip())
+                    continue
+
+                #Skip the first sentence if it is "Summary" or "Context"
+                elif paragraph.text.strip().lower() in ["summary", "context"]:
+                    start = 1
+                    continue
+
+                if paragraph.text.strip().lower() in ["analysis"]:
+                    start = 0
+                    continue
+                
+                if start:
+                    section_paragraphs.append(paragraph.text.strip())
+                else:
+                    section_analysis.append(paragraph.text.strip())
+
+                # print ("section_paragraphs: ", section_paragraphs)
+                
+            section_text = "<PARAGRAPH>".join(section_paragraphs)
+            section_analysis_text = "<PARAGRAPH>".join(section_analysis)
+
+            # print ("section_text: ", section_text)
+
+            section_dict = {}
+            section_dict["name"] = name
+            section_dict["summary"] = section_text
+            section_dict["analysis"] = section_analysis_text
+            section_dict["url"] = section
+            
+
+            output_fname = os.path.join(specific_summary_dir, 'section_%d.txt' % index)
+            with open(output_fname, 'w', encoding="utf-8") as fp:
+                json.dump(section_dict, fp)

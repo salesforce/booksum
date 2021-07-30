@@ -19,10 +19,12 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 from unidecode import unidecode
 import time
 
+from urllib.error import HTTPError, URLError
+
 # PARAMS
 SUMMARY_DIR = '../../raw_summaries/pinkmonkey/summaries'
 # Summary list info
-summary_list_file = "literature_links.tsv"
+summary_list_file = 'literature_links.tsv.pruned'
 
 #Always create a new errors file when starting to run the script
 f_errors = open("section_errors.txt","w")
@@ -64,8 +66,8 @@ def get_overview_paragraphs(overview, specific_summary_dir):
         except Exception as e:
             print ("Overview not found: ", e, overview)
 
-            with open("section_errors.txt","a") as f:
-                f.write(overview + "\t" + "Overview" + "\t" + specific_summary_dir + "\n")
+            # with open("section_errors.txt","a") as f:
+            f_errors.write(overview + "\t" + "Overview" + "\t" + specific_summary_dir + "\n")
 
             return overview_paragraphs
 
@@ -132,8 +134,6 @@ def get_section_paragraphs(page_url, specific_summary_dir):
             if 'synopsis' in link_text_lower or 'plot' in link_text_lower:
                 overview_exists = 1
 
-    # print (section_links)
-
     overview_found = 0
     index = -1
 
@@ -148,12 +148,10 @@ def get_section_paragraphs(page_url, specific_summary_dir):
 
             overview = link
             overview_title = link_text
+
             print (overview_title, overview)
             
             overview_text = get_overview_paragraphs(overview, specific_summary_dir)
-
-            # print ("overview_text: ", overview_text)
-            # overview_text = "<PARAGRAPH>".join(overview_paragraphs)
 
             overview_dict = {}
             overview_dict["name"] = "overview"
@@ -170,14 +168,24 @@ def get_section_paragraphs(page_url, specific_summary_dir):
 
         if (overview_found == 1 or not overview_exists) and chapter_section_check(link_text_lower, link_text_not_lower):
 
-            # chapter_url = os.path.join(one_level_up_url, link.get("href"))
             chapter_url = link
+            
             print(link_text, chapter_url)
 
             index += 1
             
             try:
                 chapter_soup = BeautifulSoup(urllib.request.urlopen(chapter_url), "html.parser")
+            except URLError as err:
+                print (err, "Retrying after sleep")
+                time.sleep(10)
+                try:
+                    chapter_soup = BeautifulSoup(urllib.request.urlopen(chapter_url), "html.parser")
+                except Exception as e:
+                    print (chapter_url, e)
+                    f_errors.write(chapter_url + "\t" + str(e))
+                    f_errors.write("\n")
+                    continue
             except Exception as e:
                 print (e)
                 time.sleep(4)
@@ -186,8 +194,8 @@ def get_section_paragraphs(page_url, specific_summary_dir):
                 except Exception as e:
                     print ("Chapter not found: ", e, chapter_url)
 
-                    with open("section_errors.txt","a") as f:
-                        f.write(str(index) + "\t" + chapter_url + "\t" + link_text + "\t" + specific_summary_dir + "\n")
+                    # with open("section_errors.txt","a") as f:
+                    f_errors.write(str(index) + "\t" + chapter_url + "\t" + link_text + "\t" + specific_summary_dir + "\n")
 
                     continue
 
@@ -195,19 +203,38 @@ def get_section_paragraphs(page_url, specific_summary_dir):
 
             iframe_text = "Your browser does not support the IFRAME tag."
 
-            pat = "(.*summary )(.*)"
+            section_text_paras = []
 
             for ix, chapter_para in enumerate(chapter_paras):
                 try:
                     section_text = chapter_para.text.strip().replace(iframe_text, "").replace("\r\n"," ").replace("\n"," ")
-                    if re.match(pat, section_text, re.IGNORECASE):
-                        break
-                except: # No text inside the para HTML
+
+                    section_text_paras.append(unidecode(section_text))
+                        
+                except Exception as e: # No text inside the para HTML
+                    print ("Summary not found: ", e, chapter_url)
+
+                    f_errors.write(str(index) + "\t" + chapter_url + "\t" + link_text + "\t" + specific_summary_dir + "\n")
                     continue
                     
-            section_text = unidecode(section_text)
+            section_text = ' '.join(section_text_paras)
+
             section_text = ". ".join([line.strip().rstrip() for line in section_text.split('. ')])
+            section_text = " ".join([word.strip() for word in section_text.split()])
+
+            # Remove obvious noise from the summary text
+            pat_toc = '.*?(Table of Contents(.*$))'
+
+            if re.match(pat_toc, section_text):
+                to_replace = re.match(pat_toc, section_text).group(1)
+                section_text = section_text.replace(to_replace, "")
+
+            section_text = section_text.replace("Help / FAQ", "").strip()   # why no remove?
+            section_text = section_text.replace("Please Take our User Survey", "").strip()   # why no remove?
+            
             section_title = link_text
+
+            # print ("section_text SAVED: ", section_text)
 
             save_section_para(section_text, section_title, chapter_url, specific_summary_dir, index)
         
@@ -222,14 +249,26 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory, skipping.")
-        continue
+        # continue
 
     # Parse page
     try:
         soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+    except URLError as err:
+        print (err, "Retrying after sleep")
+        time.sleep(10)
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
+        except Exception as e:
+            print (page_url, e)
+            f_errors.write(page_url + "\t" + str(e))
+            f_errors.write("\n")
+            continue
     except Exception as e:
         print ("page not found: ", e)
         continue
             
     get_section_paragraphs(page_url, specific_summary_dir)
+
+    
 

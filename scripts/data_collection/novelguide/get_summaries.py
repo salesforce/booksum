@@ -26,7 +26,7 @@ ARGS = PARSER.parse_args()
 
 # PARAMS
 SUMMARY_DIR = '../../raw_summaries/novelguide/summaries'
-MAIN_SITE = 'https://web.archive.org/web/20210225014436/https://www.novelguide.com/'
+MAIN_SITE = 'https://web.archive.org/web/20210708184822/https://www.novelguide.com/'
 
 def hasNumbers(inputString):
     return any(char.isdigit() for char in inputString)
@@ -47,9 +47,18 @@ def get_section_level_data(section_links):
             section_analysis = []
 
             section_paras = section_data.findAll("p")
-
+            
             for para in section_paras:
-                section_paragraphs.append(unidecode(para.text.strip()))
+                if para.text.strip():
+                    section_paragraphs.append(unidecode(para.text.strip()))
+
+            # Try alternate
+            if section_paragraphs == []:
+                section_paras = section_data.findAll("div")
+                # print ("section_paras: ", section_paras)
+                for para in section_paras:
+                    section_paragraphs.append(unidecode(para.text.strip()))
+
 
             section_text = "<PARAGRAPH>".join(section_paragraphs)
             section_analysis_text = "<PARAGRAPH>".join(section_analysis)
@@ -80,7 +89,7 @@ def get_section_level_data(section_links):
             time.sleep(5)
 
             http_errors.append((index, section, name, specific_summary_dir))
-            print ("http_errors: ", http_errors)
+            # print ("http_errors: ", http_errors)
 
     #Errors File is created for saving urls that are not found, before calling this function
     f_errors = open("section_errors.txt","a")
@@ -88,8 +97,6 @@ def get_section_level_data(section_links):
     for (index, section, name, specific_summary_dir) in http_errors:
         f_errors.write(str(index) + "\t" + section + "\t" + name + "\t" + specific_summary_dir + "\n")
 
-    if http_errors != []:
-        print ("Http errors written to {}".format(f_errors))
 
 # fetch only the links that resulted in an http error
 if ARGS.fix_scraping_errors:
@@ -119,10 +126,8 @@ if ARGS.fix_scraping_errors:
         #fetch the summaries using the links that threw an error
         get_section_level_data(section_links)
 
-    exit()
-
 # Summary list info
-summary_list_file = "literature_links.tsv"
+summary_list_file = 'literature_links.tsv.pruned'
 
 # Get contents of the summary file
 with open(summary_list_file, 'r') as tsvfile:
@@ -149,7 +154,7 @@ for k, (title, page_url) in enumerate(summary_infos):
         os.makedirs(specific_summary_dir)
     else:
         print("Found existing directory.")
-        continue
+        # continue
 
     # Parse page
     try:
@@ -160,7 +165,7 @@ for k, (title, page_url) in enumerate(summary_infos):
         try:
             soup = BeautifulSoup(urllib.request.urlopen(page_url), "html.parser")
         except urllib.error.HTTPError:
-            print ("Page not accessible")
+            print ("Page not accessible: ", page_url)
             f_book_errors.write(str(k) + "\t" + title + "\t" + page_url)
             f_book_errors.write("\n")
             continue
@@ -170,7 +175,7 @@ for k, (title, page_url) in enumerate(summary_infos):
 
     #  Some links are just empty webpages
     if navigation_links == None:
-        print ("Page not accessible")
+        print ("Navigation links not found")
         f_book_errors.write(str(k) + "\t" + title + "\t" + page_url)
         f_book_errors.write("\n")
         continue
@@ -188,9 +193,6 @@ for k, (title, page_url) in enumerate(summary_infos):
     for index, (section, name) in enumerate(section_links):
         section_links_with_index.append((index,(section, name), specific_summary_dir))
 
-    # print (section_links_with_index, "\n")
-
-    
     if len(section_links_with_index) == 0:
         print ("No section summaries found")
     else:

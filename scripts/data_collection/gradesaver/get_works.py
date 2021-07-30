@@ -14,13 +14,16 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from shutil import rmtree
 from nltk.tokenize import word_tokenize, sent_tokenize
+import time
 
 # PARAMS
 MAIN_SITE = 'https://web.archive.org/web/20210226083212/https://www.gradesaver.com/'
 
-alphabet_list = string.ascii_uppercase
 
 SEED_URL = 'https://web.archive.org/web/20210226083212/https://www.gradesaver.com/study-guides/'
+
+alphabet_list = string.ascii_uppercase
+errors_file = open("link_errors.txt","w")
 
 def scrape_index_pages(seed_page):
 # For each summary info
@@ -30,7 +33,16 @@ def scrape_index_pages(seed_page):
     for char in alphabet_list:
         books_page = seed_page + char
 
-        soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+        try:
+            soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+        except Exception as e:
+            time.sleep(10)
+            try:
+                soup = BeautifulSoup(urllib.request.urlopen(books_page), "html.parser")
+            except Exception as e:
+                print ("Skipping book: ", books_page)
+                errors_file.write(books_page + "\t" + str(e) + "\n")
+
         items = soup.findAll("ul", {"class": "columnList"})
         books = items[0].findAll("li", {"class":"columnList__item"})
 
@@ -42,15 +54,13 @@ def scrape_index_pages(seed_page):
             item_url = item.find("a").get("href")
 
             print ("item_title: ", item_title.strip())
-            print ("item_url: ", item_url.strip())
-            print ("\n")
+            print ("item_url: ", item_url.strip(), "\n")
 
             scraped_links.append({
                 "title": item_title.strip(),
                 "url": urllib.parse.urljoin(MAIN_SITE, item_url.strip())
             })
             
-            # exit()
     return scraped_links
 
 # generate literature links
