@@ -19,6 +19,8 @@ sources = ['gradesaver', 'shmoop',  'cliffnotes', 'sparknotes', 'pinkmonkey', 'b
 
 BASE_DIR = "../raw_summaries/"
 
+f_errors = open("summary_not_found.txt", "w")
+
 for src in sources:
 
     print ("src: ", src)
@@ -47,59 +49,28 @@ for src in sources:
             try:
                 summary_json = json.loads(fp.readlines()[0])
             except Exception as e:
-                print (book, "=Error reading json==", section)
-                print (e)           
+                print (book, "=Error reading json==", e, section)
+                f_errors.write(summary_path + str(e) + "\n")
                 continue
 
-            #Remove text inside paranthesis first
-            #Sometimes 'Click here' could be inside braces
+            #Remove text inside paranthesis
 
-            #Remove paranthesis first
             if type(summary_json['summary']) is list:
                 summary_json['summary'] = " ".join(summary_json['summary'])
+            summary_json['summary'] = unidecode(summary_json['summary'])
             summary_json['summary'] = re.sub("[\(\[].*?[\)\]]", "", summary_json['summary'])
-            
+
             if 'analysis' in summary_json and summary_json['analysis'] is not None:
                 if type(summary_json['analysis']) is list:
                     summary_json['analysis'] = " ".join(summary_json['analysis'])
+                summary_json['analysis'] = unidecode(summary_json['analysis'])
                 summary_json['analysis'] = re.sub("[\(\[].*?[\)\]]", "", summary_json['analysis'])
 
-            # print (summary_json['summary'])
-            if 'Click' in summary_json['summary']:
-                lines = summary_json['summary'].split(".")
-                summary_json['summary'] = ""
-                new_lines = []
-                # print (lines)
-                for index, line in enumerate(lines):
-                    
-                    # Can we just delete the line like that? OR do we need to look the line actually
-                    if 'Click on' in line or 'Click over' in line\
-                    or 'Click that' in line or 'Click to' in line or 'Check out' in line:
-                        continue
-                    else:
-                        new_lines.append(unidecode(line))
-
-                summary_json['summary'] = ". ".join(new_lines)
-
-            if 'analysis' in summary_json and summary_json['analysis'] is not None and 'Click' in summary_json['analysis']:
-                lines = summary_json['analysis'].split(".")
-                summary_json['analysis'] = ""
-                new_lines = []
-                # print (lines)
-                for index, line in enumerate(lines):
-
-                    if 'Click on' in line or 'Click over' in line\
-                    or 'Click that' in line or 'Click to' in line or 'Check out' in line:
-                        continue
-                    else:
-                        new_lines.append(unidecode(line))
-
-                summary_json['analysis'] = ". ".join(new_lines)
-
+            # Section name remains the same for overview.txt
             section_out = section
 
-            if '.txt' in section_out and 'overview' not in section_out:
-                section_out = section[0:-4] + "_part_0.txt" #add _part_0 to every summary file for splitting later
+            if '.txt' in section and 'overview' not in section:
+                section_out = section[0:-4] + "_part_0.txt" # add _part_0 to every summary file for splitting operations later
 
             book_dest_path = os.path.join(book_dest, section_out)
 

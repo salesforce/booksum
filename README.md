@@ -81,23 +81,22 @@ python get_summaries.py
 
 #### 3. Data Cleaning
 
-Data Cleaning is performed through the following steps:
 
-First script for some basic cleaning operations, like removing parentheses, links etc from the summary text
-```
-cd scripts/data_cleaning_scripts/
-python basic_clean.py
-```
+1. Perform basic cleanup operations and setup the summary text for splitting and further cleaning operations
+    ```
+    cd scripts/data_cleaning_scripts/
+    python basic_clean.py
+    ```
 
-We use intermediate alignments in  summary_chapter_matched_all_sources.jsonl to identify which summaries are separable, and separates them, creating new summaries (eg. Chapters 1-3 summary separated into 3 different files - Chapter 1 summary, Chapter 2 summary, Chapter 3 summary)
-```
-python split_aggregate_chaps_all_sources.py
-```
+2. Using a mapping of which chapter summaries are separable (`alignments/chapter_summary_aligned.jsonl.aggregate_splits`), the summary text is split into different sections (eg. Chapters 1-3 summary separated into 3 different sections - Chapter 1 summary, Chapter 2 summary, Chapter 3 summary)
+    ```
+    python split_aggregate_chaps_all_sources.py
+    ```
 
-Lastly, our final cleaning script using various regexes to separate out analysis/commentary text, removes prefixes, suffixes etc.
-```
-python clean_summaries.py
-```
+3. The main cleanup script separates out analysis/commentary/notes from the summary text, removes prefixes etc.
+    ```
+    python clean_summaries.py
+    ```
 
 #### Data Alignments
 Generating paragraph alignments from the chapter-level-summary-alignments, is performed individually for the train/test/val splits:
