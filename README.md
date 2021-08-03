@@ -112,11 +112,6 @@ Generate alignments of the paragraphs with sentences from the summary using the 
 python align_data_bi_encoder_paraphrase.py --data_path /path/to/chapter_summary_aligned_{train/test/val}_split.jsonl.gathered --stable_alignment
 ```
 
-Aggregate the generated alignments for cases where multiple sentences from a chapter summary are matched to the same paragraph from the book chapter
-```
-python aggregate_paragraph_alignments_bi_encoder_paraphrase.py --file train/test/val
-```
-
 ## Troubleshooting
 1. The web archive links we collect the summaries from can often be unreliable, taking a long time to load. One way to fix this is to use higher sleep timeouts when one of the links throws an exception, which has been implemented in some of the scripts.
 2. Some links that constantly throw errors are aggregated in a file called - 'section_errors.txt'. This is useful to inspect which links are actually unavailable and re-running the data collection scripts for those specific links.

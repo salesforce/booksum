@@ -1,5 +1,13 @@
 """
-Script used to generate bi-encoder paraphrase alignment of the paragraphs with sentences from the summary.
+/*
+ * Copyright (c) 2021, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+ */
+
+Script used to generate alignments of the paragraphs with sentences from the summary using a paraphrase biencoder model - https://huggingface.co/sentence-transformers/paraphrase-distilroberta-base-v1.
+The summary sentences that match with the same paragraph are then aggregated together.
 It is recommended to run this script on a GPU machine.
 """
 
@@ -154,10 +162,10 @@ def gather_data(alignments_bi_encoder_paraphrase, paragraphs, summaries, similar
     for s_ix, t_ix_bienc_p in enumerate(all_alignments):
         # print (s_ix, t_ix)
         example = {
-            "summary sentence": summaries[s_ix],
-            "bi-encoder-paraphrase alignment": paragraphs[t_ix_bienc_p],
-            "bi-encoder-paraphrase score":  str(similarity_matrix_bi_encoder_paraphrase[s_ix][t_ix_bienc_p]),
-            "title": title + "-" + str(s_ix)
+            "summary_sentence": summaries[s_ix],
+            "paragraph_alignment": paragraphs[t_ix_bienc_p],
+            "alignment_score":  str(similarity_matrix_bi_encoder_paraphrase[s_ix][t_ix_bienc_p]),
+            "title": title + "-" + str(t_ix_bienc_p)    # title has the id of the paragraph each summary sentence is aligned with
         }
         
         examples.append(example)
@@ -186,15 +194,54 @@ def visualize_alignments(similarity_matrix, alignments, title, output_dir=None):
 
     plt.close()
 
+# Combine sentences from the summary that align with the same paragraph
+def aggregate_paragraph_summary_alignments(examples):
+
+    aggregated_alignments = []
+    paragraph_dict = {}
+
+    for ex in examples:
+
+        # aggregate on the paragraph title
+        title = ex['title']
+
+        if title not in paragraph_dict:
+            paragraph_dict[title] = [ ex['paragraph_alignment'], [ex['summary_sentence']], [ex['alignment_score']] ]
+        else:
+            assert paragraph_dict[title][0] == ex['paragraph_alignment']
+            paragraph_dict[title][1].append(ex['summary_sentence'])
+            paragraph_dict[title][2].append(ex['alignment_score'])
+
+    for para_title, alignments in paragraph_dict.items():
+
+        agg_example = {
+            'text' : alignments[0],
+            'summary' : alignments[1],
+            'alignment_scores' : alignments[2],
+            'title' : para_title
+        }
+
+        aggregated_alignments.append(agg_example)
+
+    return aggregated_alignments
+
 
 def main(args):
     # load data
     with open(args.data_path) as fd:
         data = [json.loads(line) for line in fd]
 
+    # Create alignment file
+
+    if args.stable_alignment:
+        f_stable_alignments = open(basename(args.data_path) + ".stable", "w")
+
+    if args.greedy_alignment:
+        f_greedy_alignments = open(basename(args.data_path) + ".greedy", "w")
+
     # align each example
 
-    for ix, example in tqdm(enumerate(data)):
+    for ix, example in enumerate(tqdm(data)):
         if example['summary'] == []:
             continue
 
@@ -222,10 +269,10 @@ def main(args):
             stable_examples = gather_data(stable_alignments_bi_encoder_paraphrase, paragraphs, summaries, similarity_matrix_bi_encoder_paraphrase, title)
 
             # visualize_alignments(similarity_matrix_bi_encoder_paraphrase, stable_alignments_bi_encoder_paraphrase, title, args.output_dir)
+            stable_examples_aggregated = aggregate_paragraph_summary_alignments(stable_examples)
 
-            with open(basename(args.data_path) + ".stable.bi_encoder_paraphrase", "w") as fd:
-                for stable_example in stable_examples:
-                    fd.write(json.dumps(stable_example) + "\n")
+            for stable_example in stable_examples_aggregated:
+                f_stable_alignments.write(json.dumps(stable_example) + "\n")
 
 
         if args.greedy_alignment:
@@ -234,13 +281,14 @@ def main(args):
             greedy_alignments = align_data_greedy_matching(similarity_matrix_bi_encoder_paraphrase)
             greedy_examples = gather_data(greedy_alignments, paragraphs, summaries, similarity_matrix_bi_encoder_paraphrase, title)
 
-            with open(basename(args.data_path) + ".greedy", "w") as fd:
-                for greedy_example in greedy_examples:
-                    fd.write(json.dumps(greedy_example) + "\n")
+            greedy_examples_aggregated = aggregate_paragraph_summary_alignments(greedy_examples)
+
+            for greedy_example in greedy_examples_aggregated:
+                f_greedy_alignments.write(json.dumps(greedy_example) + "\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', type=str, help='path to input data file')
+    parser.add_argument('--data_path', type=str, help='path to gathered data file')
     parser.add_argument('--similarity_fn', type=str, default='weighted', choices=['weighted', 'original'], help='function used for similarity evaluation')
     parser.add_argument('--stable_alignment', action='store_true', help='function used for aligning')
     parser.add_argument('--greedy_alignment', action='store_true', help='function used for aligning')

@@ -1,4 +1,11 @@
 """
+/*
+ * Copyright (c) 2021, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+ */
+
 The script gathers summary and chapter data into a single jsonl file that we can later break into paragraphs
 that align with the sentences from the summaries. The script is run separately for the train/test/val splits.
 
@@ -8,6 +15,7 @@ import json
 import os
 import re
 import spacy
+from os.path import basename
 
 from tqdm import tqdm
 
@@ -24,7 +32,7 @@ def fix_leftover_headers(summary_content):
     summary_content = [sent for sent in summary_content if not sent == "Analysis"]
 
     # remove floating punctuations
-    summary_content = [sent for sent in summary_content if not sent == "-" or not sent == "."]
+    summary_content = [sent for sent in summary_content if not sent == "-" or not sent == "." or not sent == "\""]
 
     return summary_content
 
@@ -173,6 +181,8 @@ def main(args):
     CHAPTERIZED_BOOKS_DIR = "../../"
     FINISHED_SUMMARIES_DIR = "../../scripts/"
 
+    empty_summaries = []
+
     # gather data
     processed_data = []
     for example in tqdm(raw_data):
@@ -188,14 +198,20 @@ def main(args):
 
         summary_path = os.path.join(FINISHED_SUMMARIES_DIR, example["summary_path"])
 
+        # Some summary paths may be missing due to data collection errors
         if not os.path.exists(summary_path):
             continue
-            
+        
         with open(summary_path) as fd:
             if args.join_strings:
-                summary_content = " ".join([line.strip() for line in json.loads(fd.read())["summary"]])
+                summary_content = json.loads(fd.read())["summary"]
             elif args.split_paragraphs:
-                summary_content = " ".join([line.strip() for line in json.loads(fd.read())["summary"]])
+                summary_content = json.loads(fd.read())["summary"]
+
+                if summary_content == "":
+                    empty_summaries.append(summary_path)
+                    continue
+
                 summary_content = [sent.text.strip() for sent in spacy_nlp(summary_content).sents]
                 summary_content = [sent for sent in summary_content if sent]
 
@@ -204,6 +220,7 @@ def main(args):
                 summary_content = fix_prefix_quotations(summary_content)
                 summary_content = fix_unclosed_quotations(summary_content)
                 summary_content = fix_noncapitalized_prefix(summary_content)
+                    
                 try:
                     summary_content = fix_short_sentences(summary_content)
                 except:
@@ -216,8 +233,11 @@ def main(args):
 
         processed_data.append(example)
 
+    # Some summaries could be empty after the cleanup process
+    print ("Empty summaries found: ", empty_summaries, len(empty_summaries))
+
    # save gathered data
-    with open(CHAPTER_SUMMARY_MATCHED_FILE + ".gathered", "w") as fd:
+    with open(basename(CHAPTER_SUMMARY_MATCHED_FILE) + ".gathered", "w") as fd:
         for example in processed_data:
             fd.write(json.dumps(example) + "\n")
 
