@@ -1,6 +1,6 @@
 sentence_transformers==1.2.0
 matplotlib==3.4.2
-numpy==1.19.5
+numpy==1.22.0
 spacy==3.0.3
 matching==1.4
 nltk==3.6.2
