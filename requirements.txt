@@ -4,7 +4,7 @@ numpy==1.19.5
 spacy==3.0.3
 matching==1.4
 nltk==3.6.2
-tqdm==4.49.0
+tqdm==4.66.3
 beautifulsoup4==4.9.3
 Unidecode==1.2.0
 word2number==1.1
